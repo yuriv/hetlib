@@ -1,5 +1,3 @@
-enable_testing()
-
 include_directories(
         ../include
         ${DOCTEST_INCLUDE_DIR}
