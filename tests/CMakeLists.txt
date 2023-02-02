@@ -1,6 +1,6 @@
 include_directories(
         ../include
-        ../3rd/doctest/doctest
+        ${DOCTEST_INCLUDE_DIR}
         ../3rd/benchmark/include
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}/include
