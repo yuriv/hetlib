@@ -1,3 +1,5 @@
+enable_testing()
+
 include_directories(
         ../include
         ${DOCTEST_INCLUDE_DIR}
@@ -15,3 +17,5 @@ add_executable(het_tests
 target_link_libraries(het_tests
         dl
 )
+
+add_test(test het_tests)
