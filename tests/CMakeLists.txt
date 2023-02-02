@@ -1,7 +1,7 @@
 include_directories(
         ../include
         ${DOCTEST_INCLUDE_DIR}
-        ../3rd/benchmark/include
+        ${GBENCH_INCLUDE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
