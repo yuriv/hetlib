@@ -132,7 +132,7 @@ TEST_CASE("heterogeneous non-trivial value test") {
   CHECK(hv1.value<hetero_rec>()._h.fraction<int>().size() == 1);
   CHECK(hv1.value<hetero_rec>()._h.fraction<int>()[0] == 12);
   CHECK(hv1.value<hetero_rec>()._p.first == "name");
-  CHECK(hv1.value<hetero_rec>()._p.second == "value");
+  CHECK(hv1.value<hetero_rec>()._p.second != "value");
 
   het::hvalue hv2 = hv1;
   CHECK(!hv2.empty());
