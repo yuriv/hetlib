@@ -7,18 +7,16 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-add_definitions(-DHETLIB_ORGANIZATION="Oversun, Ltd.")
-add_definitions(-DHETLIB_PRODUCT="Het library")
-add_definitions(-DHETLIB_SUITE="Dev")
+add_definitions(-DHETLIB_AUTHOR="Yuri Volodine")
+add_definitions(-DHETLIB_PRODUCT="hetlib")
+add_definitions(-DHETLIB_SUITE="Reg")
 add_definitions(-DHETLIB_VERSION="${CMAKE_PROJECT_VERSION}")
 add_definitions(-DHETLIB_DESCRIPTION="${CMAKE_PROJECT_DESCRIPTION}")
-add_definitions(-DHETLIB_FULLNAME="Hetlib[DevSuite]")
+add_definitions(-DHETLIB_FULLNAME="hetlib[Reg]")
 
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fPIC -O0 -Wall -Wextra -Wpedantic")
-set(CMAKE_CXX_FLAGS_INSTRUMENTEDRELEASE "${CMAKE_CXX_FLAGS_INSTRUMENTEDRELEASE} -fPIC -Wall -Wextra -Wpedantic -g -O2")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -fPIC -Wall -Wextra -Wpedantic -O2 -DNDEBUG")
-set(CMAKE_CXX_FLAGS_PGORELEASE "${CMAKE_CXX_FLAGS_PGORELEASE} -fPIC -Wall -Wextra -Wpedantic -O3 -DNDEBUG")
-set(CMAKE_CONFIGURATION_TYPES "Debug;Release;InstrumentedRelease;PGORelease" CACHE STRING "" FORCE)
+set(CMAKE_CONFIGURATION_TYPES "Debug;Release" CACHE STRING "" FORCE)
 set(SOURCE_FILES
     include/uncommon_definitions.h
     include/het/het.h)
@@ -26,12 +24,8 @@ set(SOURCE_FILES
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     add_compile_options("-Wall" "-Wextra" "-Wconversion" "-Wpedantic")
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
-    add_compile_options("-fconcepts" "-Wall" "-Wextra" "-Wconversion" "-Wpedantic" "-fconcepts"
-        #"-fsanitize=address"
-            )
+    add_compile_options("-Wall" "-Wextra" "-Wconversion" "-Wpedantic" "-fconcepts")
 endif()
-
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin/${CMAKE_BUILD_TYPE})
 
 configure_file(version_config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/include/generated/version_config.h)
 

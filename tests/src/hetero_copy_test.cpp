@@ -15,6 +15,7 @@ TEST_CASE("heterogeneous container copy test") {
   h.push_back<int>(123123);
   h.push_back<float>(1.11111f);
 
+  CHECK_EQ(h.size(), 2);
   CHECK_EQ(h.at<int>(0), 123123);
   CHECK_EQ(h.at<float>(0), 1.11111f);
 
@@ -29,6 +30,8 @@ TEST_CASE("heterogeneous container copy test") {
   w.push_back(3.1412);
   w.push_back(3.14123);
   w.push_back(3.141234);
+
+  CHECK_EQ(w.size(), 10);
   CHECK_EQ(w.fraction<int>(), std::vector<int>{123, 1234, 12345, 123456, 1234567});
   CHECK_EQ(w.fraction<double>(), std::vector<double>{3.14, 3.141, 3.1412, 3.14123, 3.141234});
 
@@ -46,15 +49,20 @@ TEST_CASE("heterogeneous container copy test") {
   ww.push_back(6.2812345);
   ww.push_back(6.28123456);
 
+  CHECK_EQ(ww.size(), 12);
+  CHECK_EQ(ww.fraction<int>(), std::vector<int>{42, 421, 4212, 42123, 421234});
+  CHECK_EQ(ww.fraction<double>(), std::vector<double>{6.28, 6.281, 6.2812, 6.28123, 6.281234, 6.2812345, 6.28123456});
+
   w.push_back(ww);
-  CHECK_EQ(w.fraction<int>(), std::vector<int>{42, 421, 4212, 42123, 421234});
-  CHECK_EQ(w.fraction<double>(), std::vector<double>{6.28, 6.281, 6.2812, 6.28123, 6.281234, 6.2812345, 6.2812346});
-  CHECK_EQ(w.at<het::hvector>(0), std::vector<double>{6.28, 6.281, 6.2812, 6.28123, 6.281234, 6.2812345, 6.2812346});
+  CHECK_EQ(w.size(), 11);
+  CHECK_EQ(w.at<het::hvector>(0).fraction<double>(), std::vector<double>{6.28, 6.281, 6.2812, 6.28123, 6.281234, 6.2812345, 6.28123456});
 
   h.push_back(w);
   h.push_back(w);
   h.push_back(w);
   h.push_back(std::move(w));
+
+  CHECK_EQ(h.size(), 6);
 
   het::hvector w0;
   w0 = h;

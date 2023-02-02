@@ -15,6 +15,4 @@
 
 #define HET_UNUSED(x) ((void)x)
 
-#define LOGD std::cout
-
 #endif // HETLIB_UNCOMMON_DEFINITIONS_H

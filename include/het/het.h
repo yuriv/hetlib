@@ -17,37 +17,9 @@
 
 namespace het {
 
-namespace {
+enum class VisitorReturn { Break, Continue };
 
-template <typename...> struct type_list {};
-
-template <typename... Types> struct visitor_base {
-  using types = type_list<Types...>;
-};
-
-} // namespace anonymous
-
-enum class VisitorReturn { vrBreak, vrContinue };
-
-template <typename T> requires (!std::convertible_to<std::decay_t<T>, bool>)
-struct return_value {
-  return_value() = default;
-  return_value(return_value const &) = default;
-  return_value(return_value &&) = default;
-  explicit return_value(bool first, T const & second) : _value{first, second} {}
-
-  return_value & operator=(return_value const &) = default;
-  return_value & operator=(return_value &&) = default;
-
-  constexpr operator bool() const { return _value.first; }
-  constexpr T const & get() const { return _value.second; }
-  constexpr T & get() { return _value.second; }
-
-private:
-  std::pair<bool, T> _value;
-};
-
-template <template <typename...> typename C>
+template <template <typename...> class C>
 class hetero_value {
   template <typename T> static C<hetero_value const *, T> _values;
 
@@ -63,7 +35,9 @@ public:
     (..., add_value(std::forward<Ts>(ts)));
   }
 
-  virtual ~hetero_value() = default;
+  virtual ~hetero_value() {
+    clear();
+  }
 
   hetero_value & operator=(hetero_value const & value) {
     assign(value);
@@ -99,19 +73,19 @@ public:
     (..., add_value(std::forward<Ts>(values)));
   }
 
-  template <typename T> bool contains() const {
+  template <typename T> [[nodiscard]] bool contains() const {
     return hetero_value::_values<T>.find(this) != std::end(hetero_value::_values<T>);
   }
 
   template <typename T> const T & value() const {
     auto it = hetero_value::_values<T>.find(this);
     if(it == std::end(hetero_value::_values<T>)) {
-      throw umf::runtime_failure(AT "Out of range");
+      throw std::range_error(AT "Out of range");
     }
     return it->second;
   }
 
-  template <typename T> const T & value_or_add(T const & value = T{}) {
+  template <typename T> [[nodiscard]] const T & value_or_add(T const & value = T{}) {
     auto it = hetero_value::_values<T>.find(this);
     if(it == std::end(hetero_value::_values<T>)) {
       it = add_value(value);
@@ -119,21 +93,29 @@ public:
     return it->second;
   }
 
-  template <typename T> const T & value_or_add(T && value = T{}) {
+  template <typename T> [[nodiscard]] const T & value_or_add(T && value = T{}) {
     return value_or_add(static_cast<T const &>(value));
   }
 
-  template <typename... Ts> void add_values(Ts const &... values) {
-    (..., add_value(values));
+  template <typename T, typename... Ts> void add_values(T const & value, Ts const &... values) {
+    add_value(value), (..., add_value(values));
   }
 
-  template <typename... Ts> void add_values(Ts &&... values) {
-    (..., add_value(std::forward<Ts>(values)));
+  template <typename T, typename... Ts> void add_values(T && value, Ts &&... values) {
+    add_value(value), (..., add_value(std::forward<Ts>(values)));
   }
 
-  template <typename... Ts>
+  template <typename T, typename... Ts> void modify_values(T const & value, Ts const &... values) {
+    add_value(value), (..., add_value(values));
+  }
+
+  template <typename T, typename... Ts> void modify_values(T && value, Ts &&... values) {
+    add_value(value), (..., add_value(std::forward<Ts>(values)));
+  }
+
+  template <typename T, typename... Ts>
   void erase_values() {
-    (..., erase_value<Ts>());
+    erase_value<T>(), (..., erase_value<Ts>());
   }
 
   void clear() {
@@ -142,42 +124,66 @@ public:
     }
   }
 
-  bool empty() const {
+  [[nodiscard]] bool empty() const {
     return _arity == 0;
   }
 
-  std::size_t arity() const {
+  [[nodiscard]] std::size_t arity() const {
     return _arity;
   }
 
-  template<typename... Ts>
-  auto visit() {
+  template <typename T, typename... Ts>
+  auto visit() const {
     return [this]<typename F>(F && f) -> VisitorReturn {
-      return (... || (visit_single<std::decay_t<F>, Ts>(std::forward<F>(f)) == VisitorReturn::vrBreak)) ?
-        VisitorReturn::vrBreak : VisitorReturn::vrContinue;
+      return (visit_single<std::decay_t<F>, T>(std::forward<F>(f)) == VisitorReturn::Break) ||
+        (... || (visit_single<std::decay_t<F>, Ts>(std::forward<F>(f)) == VisitorReturn::Break)) ?
+          VisitorReturn::Break : VisitorReturn::Continue;
+    };
+  }
+
+  template <typename T, typename... Ts>
+  auto equal(hetero_value const & rhs) const {
+    return [this, &rhs]<typename F>(F && f) -> bool {
+        return equal_single<std::decay_t<F>, T>(std::forward<F>(f), rhs.template value<T>()) &&
+            (... && equal_single<std::decay_t<F>, Ts>(std::forward<F>(f), rhs.template value<Ts>()));
+    };
+  }
+
+  template <typename T, typename... Ts>
+  auto equal(hetero_value && rhs) const {
+    return [this, &rhs]<typename F>(F && f) -> bool {
+      return equal_single<std::decay_t<F>, T>(std::forward<F>(f), rhs.template value<T>()) &&
+          (... && equal_single<std::decay_t<F>, Ts>(std::forward<F>(f), rhs.template value<Ts>()));
     };
   }
 
 private:
-  template<typename T, typename U>
-  using visit_function = decltype(std::declval<T>().operator()(std::declval<U&>()));
+  template<typename T, typename U> using visit_function = decltype(std::declval<T>().operator()(std::declval<U&>()));
+  template<typename T, typename U> using equal_function = decltype(std::declval<T>().operator()(std::declval<U&>(), std::declval<U&>()));
 
-  template<typename T, typename U>
-  static constexpr bool has_visit_v = std::experimental::is_detected<visit_function, T, U>::value;
+  template<typename T, typename U> static constexpr bool has_visit_v = std::experimental::is_detected<visit_function, T, U>::value;
+  template<typename T, typename U> static constexpr bool has_equal_v = std::experimental::is_detected<equal_function, T, U>::value;
 
-  template<typename T, typename U>
-  void visit_single(T & visitor) {
+  template<typename T, typename U> void visit_single(T const & visitor) {
     return visit_single<std::decay_t<T>, U>(std::move(visitor));
   }
 
-  template<typename T, typename U>
-  VisitorReturn visit_single(T && visitor) {
-    static_assert(has_visit_v<T, U>, "Visitor shouldn't accept provided type");
+  template<typename T, typename U> VisitorReturn visit_single(T && visitor) const {
+    static_assert(has_visit_v<T, U>, "Visitor should accept provided type");
     auto iter = hetero_value::_values<U>.find(this);
     if (iter != hetero_value::_values<U>.cend()) {
       return visitor(iter->second);
     }
-    return VisitorReturn::vrContinue;
+    return VisitorReturn::Continue;
+  }
+
+  template<typename T, typename U> bool equal_single(T && visitor, U const & arg) const {
+    static_assert(has_equal_v<T, U>, "Comparator should accept provided type");
+    auto iter = hetero_value::_values<U>.find(this);
+    if (iter != hetero_value::_values<U>.cend()) {
+      return visitor(iter->second, arg);
+    }
+    return false;
   }
 
   template <typename T> auto add_value(T const & value) {
@@ -191,24 +197,22 @@ private:
     return it;
   }
 
-  template <typename T>
-  void erase_value() {
+  template <typename T> void erase_value() {
     if(contains<T>()) {
       hetero_value::_values<T>.erase(this);
       _arity--;
     }
   }
 
-  template<typename T>
-  typename C<hetero_value const *, T>::iterator register_operations() {
+  template<typename T> typename C<hetero_value const *, T>::iterator register_operations() {
     auto it = _values<T>.find(this);
     // don't have it yet, so create functions for printing, copying, moving, and destroying
     if (it == std::end(_values<T>)) {
-      _clear_functions.template emplace_back([this](hetero_value& c) {
+      _clear_functions.template emplace_back([](hetero_value & c) {
         hetero_value::_values<T>.erase(&c);
       });
       // if someone copies me, they need to call each copy_function and pass themself
-      _copy_functions.template emplace_back([](const hetero_value& from, hetero_value& to) {
+      _copy_functions.template emplace_back([](const hetero_value & from, hetero_value & to) {
         if(&from != &to) {
           hetero_value::_values<T>[&to] = hetero_value::_values<T>[&from];
         }
@@ -226,60 +230,27 @@ private:
 template <template <typename...> typename C>
 template <typename T> C<hetero_value<C> const *, T> hetero_value<C>::_values;
 
-template <template <typename...> typename C>
-class kv_hetero_value {
-  template <typename T> static C<kv_hetero_value const *, T> _values;
-
-public:
-  kv_hetero_value() = default;
-
-  kv_hetero_value(kv_hetero_value const &value) {
-    assign(value);
-  }
-
-  kv_hetero_value(kv_hetero_value &&value) noexcept {
-    *this = std::move(value);
-  }
-
-  template <typename... Ts> explicit kv_hetero_value(Ts &&... ts) {
-    (..., add_value(std::forward<Ts>(ts)));
-  }
-
-  virtual ~kv_hetero_value() = default;
-
-  kv_hetero_value &operator=(kv_hetero_value const &value) {
-    assign(value);
-    return *this;
-  }
-
-  kv_hetero_value &operator=(kv_hetero_value &&value) noexcept {
-    assign(std::move(value));
-    return *this;
-  }
-};
-
-template <template <typename...> class C>
-template <typename T> C<kv_hetero_value<C> const *, T> kv_hetero_value<C>::_values;
-
 template <template <typename...> class InnerC, template <typename...> class OuterC>
-struct hetero_container {
+class hetero_container {
+  template<typename T> static OuterC<hetero_container const *, InnerC<T>> _items;
+
 public:
-  template <typename T> using return_value_type = return_value<typename InnerC<T>::iterator>;
+  template <typename T> using return_value_type = typename InnerC<T>::iterator;
 
   hetero_container() = default;
   hetero_container(hetero_container const & other) {
     *this = other;
   }
 
-  hetero_container(hetero_container && other) {
+  hetero_container(hetero_container && other)  noexcept {
     *this = std::move(other);
   }
 
-  template <typename... Ts> hetero_container(Ts const &... ts) {
+  template <typename... Ts> explicit hetero_container(Ts const &... ts) {
     (..., push_back(ts));
   }
 
-  template <typename... Ts> hetero_container(Ts &&... ts) {
+  template <typename... Ts> explicit hetero_container(Ts &&... ts) {
     (..., push_back(std::move(ts)));
   }
 
@@ -299,75 +270,80 @@ public:
     return *this;
   }
 
-  hetero_container & operator=(hetero_container && other) {
+  hetero_container & operator=(hetero_container && other) noexcept {
     *this = other;
     return *this;
   }
 
   /**
-   * @brief Inserts new element \bt to position \bpos
+   * @brief Inserts new element t before position pos
    * @tparam T -- type bucket
    * @param pos -- position to insert
    * @param t -- element to insert
    */
-  template<typename T>
-  void insert(typename std::vector<T>::iterator pos, const T & t) {
+  template<typename T> void insert(typename InnerC<T>::iterator pos, const T & t) {
     register_operations<T>();
-    _items<T>[this].insert(pos, t); // inserts new key or access existing
+    hetero_container::_items<T>[this].insert(pos, t); // inserts new key or access existing
   }
 
-  template <typename T, typename... Args>
-  T & emplace(typename std::vector<T>::iterator pos, Args &&... args) {
+  template<typename T> void insert(typename InnerC<T>::iterator pos, T && t) {
+    register_operations<std::decay_t<T>>();
+    hetero_container::_items<std::decay_t<T>>[this].insert(pos, std::forward<T>(t)); // inserts new key or access existing
+  }
+
+  template <typename T, typename... Args> T & emplace(typename InnerC<T>::iterator pos, Args &&... args) {
     register_operations<T>();
-    return _items<T>[this].emplace(pos, std::forward<Args>(args)...); // inserts new key or access existing
+    return hetero_container::_items<T>[this].emplace(pos, std::forward<Args>(args)...); // inserts new key or access existing
   }
 
-  template<typename T>
-  void push_front(const T & t) {
+  template<typename T> void push_front(const T & t) {
     register_operations<T>();
-    _items<T>[this].insert(_items<T>[this].begin(), t); // inserts new key or access existing
+    hetero_container::_items<T>[this].insert(hetero_container::_items<T>[this].begin(), t); // inserts new key or access existing
   }
 
-  template <typename T, typename... Args>
-  T & emplace_front(Args &&... args) {
+  template<typename T> void push_front(T && t) {
+    register_operations<std::decay_t<T>>();
+    hetero_container::_items<std::decay_t<T>>[this].insert(hetero_container::_items<std::decay_t<T>>[this].begin(), std::forward<T>(t)); // inserts new key or access existing
+  }
+
+  template <typename T, typename... Args> T & emplace_front(Args &&... args) {
     register_operations<T>();
-    return _items<T>[this].emplace(_items<T>[this].begin(), std::forward<Args>(args)...); // inserts new key or access existing
+    return hetero_container::_items<T>[this].emplace(hetero_container::_items<T>[this].begin(), std::forward<Args>(args)...); // inserts new key or access existing
   }
 
-  template<typename T>
-  void push_back(const T & t) {
+  template<typename T> void push_back(const T & t) {
     register_operations<T>();
-    _items<T>[this].push_back(t); // inserts new key or access existing
+    hetero_container::_items<T>[this].push_back(t); // inserts new key or access existing
   }
 
-  template <typename T, typename... Args>
-  T & emplace_back(Args &&... args) {
+  template<typename T> void push_back(T && t) {
+    register_operations<std::decay_t<T>>();
+    hetero_container::_items<std::decay_t<T>>[this].push_back(std::forward<T>(t)); // inserts new key or access existing
+  }
+
+  template <typename T, typename... Args> T & emplace_back(Args &&... args) {
     register_operations<T>();
-    return _items<T>[this].emplace_back(std::forward<Args>(args)...); // inserts new key or access existing
+    return hetero_container::_items<T>[this].emplace_back(std::forward<Args>(args)...); // inserts new key or access existing
   }
 
-  template<typename T>
-  void pop_front() {
-    _items<T>.at(this).erase(_items<T>.at(this).begin());
+  template<typename T> void pop_front() {
+    hetero_container::_items<T>.at(this).erase(hetero_container::_items<T>.at(this).begin());
   }
 
-  template<typename T>
-  void pop_back() {
-    _items<T>.at(this).pop_back();
+  template<typename T> void pop_back() {
+    hetero_container::_items<T>.at(this).pop_back();
   }
 
-  template<typename T>
-  void erase(std::size_t index) {
-    auto & c = _items<T>.at(this);
+  template<typename T> void erase(std::size_t index) {
+    auto & c = hetero_container::_items<T>.at(this);
     c.erase(std::begin(c) + index);
     if(c.empty()) {
       // TODO: remove dependent *_functions
     }
   }
 
-  template<typename T>
-  bool erase(T const & e) requires std::equality_comparable<T> {
-    auto & c = _items<T>.at(this);
+  template<typename T> bool erase(T const & e) requires std::equality_comparable<T> {
+    auto & c = hetero_container::_items<T>.at(this);
     bool erased = false;
     for(auto it = c.begin(); it != c.end(); ++it) {
       if(*it == e) {
@@ -382,14 +358,12 @@ public:
     return erased;
   }
 
-  template<typename T>
-  T & at(std::size_t index) {
-    return _items<T>.at(this).at(index);
+  template<typename T> T & at(std::size_t index) {
+    return hetero_container::_items<T>.at(this).at(index);
   }
 
-  template<typename T>
-  T const & at(std::size_t index) const {
-    return _items<T>.at(this).at(index);
+  template<typename T> T const & at(std::size_t index) const {
+    return hetero_container::_items<T>.at(this).at(index);
   }
 
   void clear() {
@@ -398,27 +372,24 @@ public:
     }
   }
 
-  bool empty() const {
-    bool retval = true;
+  [[nodiscard]] bool empty() const {
     for (auto && empty_function : _empty_functions) {
       if(!empty_function(*this)) {
-        retval = false;
-        break;
+        return false;
       }
     }
-    return retval;
+    return true;
   }
 
-  template<typename T>
-  size_t count_of() const {
-    auto iter = _items<T>.find(this);
-    if (iter != _items<T>.cend()) {
-      return _items<T>.at(this).size();
+  template<typename T> [[nodiscard]] size_t count_of() const {
+    auto iter = hetero_container::_items<T>.find(this);
+    if (iter != hetero_container::_items<T>.cend()) {
+      return hetero_container::_items<T>.at(this).size();
     }
     return 0;
   }
 
-  size_t size() const {
+  [[nodiscard]] size_t size() const {
     size_t sum = 0;
     for (auto && size_function : _size_functions) {
       sum += size_function(*this);
@@ -427,43 +398,30 @@ public:
     return sum;
   }
 
-  template <typename T>
-  auto & fraction() {
-    return _items<T>.at(this);
+  template <typename T> auto & fraction() {
+    return hetero_container::_items<T>.at(this);
   }
 
-  template <typename T>
-  auto const & fraction() const {
-    return _items<T>.at(this);
+  template <typename T> auto const & fraction() const {
+    return hetero_container::_items<T>.at(this);
   }
 
-  template <typename T, typename Projection, typename Arg>
-  bool has(Projection const & projection, Arg const & arg) const {
-    return has(projection, std::move(arg));
-  }
-
-  template <typename T, typename Projection, typename Arg>
-  bool has(Projection const & projection, Arg && arg) const {
+  template <typename T, typename... Clues> bool has(Clues &&... clues) const {
     auto const it = hetero_container::_items<T>.find(this);
     if (it != std::cend(hetero_container::_items<T>)) {
-      auto const found = std::find_if(std::cbegin((*it).second), std::cend((*it).second),
-        [projection, &arg](auto const & value) {
-          return std::invoke(projection, value) == arg;
-      });
-      if(found != std::cend((*it).second)) {
-        return true;
-      }
+      return (... || (std::find_if(std::cbegin(it->second), std::cend(it->second),
+        [&clues...](T && value) {
+          return std::invoke(clues, value) == clues.second;
+      }) != std::cend(it->second)));
     }
     return false;
   }
 
-  template <typename T, typename Projection, typename Arg>
-  return_value_type<T> find(Projection const & projection, Arg const & arg) const {
+  template <typename T, std::invocable<T> Projection, typename Arg> return_value_type<T> find(Projection const & projection, Arg const & arg) const {
     return find<T>(projection, std::move(arg));
   }
 
-  template <typename T, typename Projection, typename Arg>
-  return_value_type<T> find(Projection const & projection, Arg && arg) const {
+  template <typename T, std::invocable<T> Projection, typename Arg> return_value_type<T> find(Projection const & projection, Arg && arg) const {
     auto it = hetero_container::_items<T>.find(this);
     if(it != std::end(hetero_container::_items<T>)) {
       auto found = std::find_if(std::begin((*it).second), std::end((*it).second),
@@ -477,129 +435,67 @@ public:
     return return_value_type<T>{false, typename InnerC<T>::iterator{}};
   }
 
-  template<typename... Ts>
-  auto visit() {
+  /**
+   * \brief Generates function to visit elements of the types T, Ts by predicate F
+   * \tparam T type to proceed
+   * \tparam Ts types to proceed
+   * \return function which apply predicate F on elements of specified types
+   */
+  template <typename T, typename... Ts> auto visit() const {
     return [this]<typename F>(F && f) -> VisitorReturn {
-      return (... || (visit_single<std::decay_t<F>, Ts>(std::forward<F>(f)) == VisitorReturn::vrBreak)) ?
-        VisitorReturn::vrBreak : VisitorReturn::vrContinue;
+      return (visit_single<F, T>(std::forward<F>(f)) == VisitorReturn::Break) ||
+        (... || (visit_single<F, Ts>(std::forward<F>(f)) == VisitorReturn::Break)) ?
+          VisitorReturn::Break : VisitorReturn::Continue;
     };
   }
 
-  template<typename T, std::invocable<T> F>
-  friend std::pair<bool, typename InnerC<T>::iterator> find_first(hetero_container const & hc, F && f) {
-    auto iter = hetero_container::_items<T>.find(&hc);
-    if (iter != hetero_container::_items<T>.cend()) {
-      auto found = std::find_if((*iter).second.begin(), (*iter).second.end(), std::forward<F>(f));
-      if(found != (*iter).second.end()) {
-        return std::pair{true, found};
-      }
-    }
-    return std::pair{false, (*iter).second.end()};
-  }
+  // Find/Query accessors
+  template<typename T, template <typename...> class IC, template <typename...> class OC, std::invocable<T> F>
+  friend constexpr auto find_first(hetero_container<IC, OC> const & hc, F && f) ->
+    std::pair<bool, typename hetero_container<IC, OC>::template return_value_type<T>>;
+  template<typename T, template <typename...> class IC, template <typename...> class OC, std::invocable<T> F>
+  friend constexpr auto find_last(hetero_container<IC, OC> const & hc, F && f) ->
+    std::pair<bool, typename IC<T>::reverse_iterator>;
+  template<typename T, template <typename...> class IC, template <typename...> class OC, std::output_iterator<T> O, std::invocable<T> F>
+  friend constexpr bool find_all(hetero_container<IC, OC> const & hc, O output, F && f);
 
-  template<typename T, typename... Clues>
-  friend std::pair<bool, typename InnerC<T>::iterator> query_first(hetero_container const & hc, Clues &&... clues) {
-    static_assert(sizeof...(Clues) > 0, "At least one clue query must have");
-    return query_first_if<T>(hc,
-                             [] <typename Prj, typename Obj, typename Argm>(Prj const &prj, Obj const &obj, Argm const &arg) {
-                               return std::invoke(prj, obj) == arg;
-                             }, std::forward<Clues>(clues)...);
-  }
+  template<typename T, template <typename...> class IC, template <typename...> class OC, typename Clue, typename... Clues>
+  friend constexpr auto query_first(hetero_container<IC, OC> const & hc, Clue && clue, Clues &&... clues) ->
+    std::pair<bool, typename hetero_container<IC, OC>::template return_value_type<T>>;
+  template<typename T, template <typename...> class IC, template <typename...> class OC, typename F, typename Clue, typename... Clues>
+  friend constexpr auto query_first_if(hetero_container<IC, OC> const & hc, F && f, Clue && clue, Clues &&... clues) ->
+    std::pair<bool, typename hetero_container<IC, OC>::template return_value_type<T>>;
 
-  template<typename T, typename F, typename... Clues>
-  friend std::pair<bool, typename InnerC<T>::iterator> query_first_if(hetero_container const & hc, F && f,
-                                                                      Clues &&... clues) {
-    static_assert(sizeof...(Clues) > 0, "At least one clue query must have");
-    auto iter = hetero_container::_items<T>.find(&hc);
-    if (iter != hetero_container::_items<T>.cend()) {
-      for(auto it = (*iter).second.begin(); it != (*iter).second.end(); ++it) {
-        if((... && std::forward<F>(f)(std::forward<Clues>(clues).first, *it, std::forward<Clues>(clues).second))) {
-          return std::pair{true, it};
-        }
-      }
-    }
-    return std::pair{false, (*iter).second.end()};
-  }
-
-  template<typename T, std::invocable<T> F>
-  friend std::pair<bool, typename InnerC<T>::reverse_iterator> find_last(hetero_container const & hc, F && f) {
-    auto iter = hetero_container::_items<T>.find(&hc);
-    if (iter != hetero_container::_items<T>.cend()) {
-      auto found = std::find_if((*iter).second.rbegin(), (*iter).second.rend(), std::forward<F>(f));
-      if(found != (*iter).second.rend()) {
-        return std::pair{true, found};
-      }
-    }
-    return std::pair{false, (*iter).second.rend()};
-  }
-
-  template<typename T, std::invocable<T> Prj, std::invocable<T>... Prjs, typename Arg, typename... Args>
-  friend std::pair<bool, typename InnerC<T>::reverse_iterator> find_last(hetero_container const & hc,
-                                                                         Prj const & prj, Prjs const &... prjs, Arg && arg, Args &&... args) {
-    static_assert(sizeof...(Prjs) + 1 == sizeof...(Args) + 1,
-                  "Quantity of the projections should be equal quantity of the arguments");
-    return find_last(hc,
-                     []<typename Proj, typename Obj, typename Argm>(Proj const & proj, Obj const & obj, Argm const & arg) {
-                       return std::invoke(proj, obj) == arg;
-                     }, prj, prjs..., std::move(arg), std::move(args)...);
-  }
-
-  template<typename T, typename F, std::invocable<T> Prj, std::invocable<T>... Prjs, typename Arg, typename... Args>
-  friend std::pair<bool, typename InnerC<T>::reverse_iterator> find_last(hetero_container const & hc, F && f,
-                                                                         Prj const & prj, Prjs const &... prjs, Arg && arg, Args &&... args) {
-    static_assert(sizeof...(Prjs) + 1 == sizeof...(Args) + 1,
-                  "Quantity of the projections should be equal quantity of the arguments");
-    auto iter = hetero_container::_items<T>.find(&hc);
-    if (iter != hetero_container::_items<T>.cend()) {
-      for(auto it = (*iter).second.rbegin(); it != (*iter).second.rend(); ++it) {
-        if(std::forward<F>(f)(std::forward<Prj>(prj), *it, std::forward<Arg>(arg)) &&
-           (... && std::forward<F>(f)(prjs, *it, args))) {
-          return std::pair{true, it};
-        }
-      }
-    }
-    return std::pair{false, (*iter).second.rend()};
-  }
-
-  template<typename T, std::output_iterator<T> O, std::invocable<T> F>
-  friend void find_all(hetero_container const & hc, O output, F && f) {
-    auto iter = hetero_container::_items<T>.find(&hc);
-    if (iter != hetero_container::_items<T>.cend()) {
-      std::copy_if((*iter).second.cbegin(), (*iter).second.cend(), output, std::forward<F>(f));
-    }
-  }
+  template<typename T, template <typename...> class IC, template <typename...> class OC, typename Clue, typename... Clues>
+  friend constexpr auto query_last(hetero_container<IC, OC> const & hc, Clue && clue, Clues &&... clues) ->
+    std::pair<bool, typename IC<T>::reverse_iterator>;
+  template<typename T, template <typename...> class IC, template <typename...> class OC, typename F, typename Clue, typename... Clues>
+  friend constexpr auto query_last_if(hetero_container<IC, OC> const & hc, F && f, Clue && clue, Clues &&... clues) ->
+    std::pair<bool, typename IC<T>::reverse_iterator>;
 
 private:
-  template<typename T>
-  static OuterC<hetero_container const *, InnerC<T>> _items;
+  template<typename T, typename U> using visit_function = decltype(std::declval<T>().operator()(std::declval<U&>()));
 
-  template<typename T, typename U>
-  using visit_function = decltype(std::declval<T>().operator()(std::declval<U&>()));
+  template<typename T, typename U> static constexpr bool has_visit_v = std::experimental::is_detected<visit_function, T, U>::value;
 
-  template<typename T, typename U>
-  static constexpr bool has_visit_v = std::experimental::is_detected<visit_function, T, U>::value;
-
-  template<typename T, typename U>
-  VisitorReturn visit_single(T & visitor) {
+  template<typename T, typename U> VisitorReturn visit_single(T const & visitor) const {
     return visit_single<std::decay_t<T>, U>(std::move(visitor));
   }
 
-  template<typename T, typename U>
-  VisitorReturn visit_single(T && visitor) {
-    static_assert(has_visit_v<T, U>, "Visitor couldn't accept provided type");
+  template<typename T, typename U> VisitorReturn visit_single(T && visitor) const {
+    static_assert(has_visit_v<T, U>, "Visitor should accept provided type");
     auto iter = hetero_container::_items<U>.find(this);
     if(iter != std::cend(hetero_container::_items<U>)) {
       for(auto & c : iter->second) {
-        if(visitor(c) == VisitorReturn::vrBreak) {
-          return VisitorReturn::vrBreak;
+        if(visitor(c) == VisitorReturn::Break) {
+          return VisitorReturn::Break;
         }
       }
     }
-    return VisitorReturn::vrContinue;
+    return VisitorReturn::Continue;
   }
 
-  template<typename T>
-  void register_operations() {
+  template<typename T> void register_operations() {
     // don't have it yet, so create functions for printing, copying, moving, and destroying
     if (_items<T>.find(this) == std::end(_items<T>)) {
       _clear_functions.emplace_back([](hetero_container& c) { _items<T>.erase(&c); });
@@ -622,6 +518,138 @@ template <template <typename...> class InnerC, template <typename...> class Oute
 template<typename T>
 OuterC<hetero_container<InnerC, OuterC> const *, InnerC<T>> hetero_container<InnerC, OuterC>::_items;
 
+/**
+ * \brief Finds first occurrence of the element of the type T matched to predicate F
+ * \tparam T type of the element to search
+ * \tparam F type of the match predicate
+ * \param hc container to search
+ * \param f match predicate
+ * \return pair of presence flag and iterator (true and
+ *          valid iterator points to the element and false and invalid iterator otherwise)
+ */
+template<typename T, template <typename...> class InnerC, template <typename...> class OuterC, std::invocable<T> F>
+constexpr auto find_first(hetero_container<InnerC, OuterC> const & hc, F && f) ->
+    std::pair<bool, typename hetero_container<InnerC, OuterC>::template return_value_type<T>> {
+  auto iter = hetero_container<InnerC, OuterC>::template _items<T>.find(&hc);
+  if(iter != hetero_container<InnerC, OuterC>::template _items<T>.cend()) {
+    auto found = std::find_if(iter->second.begin(), iter->second.end(), std::forward<F>(f));
+    if(found != iter->second.end()) {
+      return std::pair{true, found};
+    }
+  }
+  return std::pair{false, iter->second.end()};
+}
+
+/**
+ * \brief
+ * \tparam T
+ * \tparam InnerC
+ * \tparam OuterC
+ * \tparam F
+ * \param hc
+ * \param f
+ * \return
+ */
+template<typename T, template <typename...> class InnerC, template <typename...> class OuterC, std::invocable<T> F>
+constexpr auto find_last(hetero_container<InnerC, OuterC> const & hc, F && f) -> std::pair<bool, typename InnerC<T>::reverse_iterator> {
+  auto iter = hetero_container<InnerC, OuterC>::template _items<T>.find(&hc);
+  if (iter != hetero_container<InnerC, OuterC>::template _items<T>.cend()) {
+    auto found = std::find_if((*iter).second.rbegin(), (*iter).second.rend(), std::forward<F>(f));
+    if(found != (*iter).second.rend()) {
+      return std::pair{true, found};
+    }
+  }
+  return std::pair{false, (*iter).second.rend()};
+}
+
+/**
+ * \brief Finds all elements of the type T matched to predicate F
+ * \tparam T type of the element to search
+ * \tparam F type of the match predicate
+ * \param hc container to search
+ * \param output container to place result set
+ * \param f match predicate
+ * \return false if result set is empty, true otherwise
+ */
+template <typename T, template <typename...> class InnerC, template <typename...> class OuterC, std::output_iterator<T> O, std::invocable<T> F>
+constexpr bool find_all(hetero_container<InnerC, OuterC> const & hc, O output, F && f) {
+  bool retval = false;
+  auto iter = hetero_container<InnerC, OuterC>::template _items<T>.find(&hc);
+  if(iter != hetero_container<InnerC, OuterC>::template _items<T>.cend()) {
+    std::copy_if(iter->second.cbegin(), iter->second.cend(), output, std::forward<F>(f));
+    retval = true;
+  }
+  return retval;
+}
+
+/**
+ * \brief
+ * \tparam T
+ * \tparam Clue
+ * \tparam Clues
+ * \param hc
+ * \param clue
+ * \param clues
+ * \return
+ */
+template<typename T, template <typename...> class InnerC, template <typename...> class OuterC, typename Clue, typename... Clues>
+constexpr auto query_first(hetero_container<InnerC, OuterC> const & hc, Clue && clue, Clues &&... clues) ->
+      std::pair<bool, typename hetero_container<InnerC, OuterC>::template return_value_type<T>> {
+  return query_first_if<T>(hc, []<typename Prj, typename Obj, typename Arg>(Prj const & prj, Obj const & obj, Arg const & arg) {
+    return std::invoke(prj, obj) == arg; //  simplest case is obj.prj == arg
+  }, std::forward<Clue>(clue), std::forward<Clues>(clues)...);
+}
+
+/**
+ * \brief
+ * \tparam T
+ * \tparam F
+ * \tparam Clue
+ * \tparam Clues
+ * \param hc
+ * \param f
+ * \param clue
+ * \param clues
+ * \return
+ */
+template<typename T, template <typename...> class InnerC, template <typename...> class OuterC, typename F, typename Clue, typename... Clues>
+constexpr auto query_first_if(hetero_container<InnerC, OuterC> const & hc, F && f, Clue && clue, Clues &&... clues) ->
+    std::pair<bool, typename hetero_container<InnerC, OuterC>::template return_value_type<T>> {
+  auto iter = hetero_container<InnerC, OuterC>::template _items<T>.find(&hc);
+  if (iter != hetero_container<InnerC, OuterC>::template _items<T>.cend()) {
+    for(auto it = iter->second.begin(); it != iter->second.end(); ++it) {
+      if(std::forward<F>(f)(std::forward<Clue>(clue).first, *it, std::forward<Clue>(clue).second) &&
+          (... && std::forward<F>(f)(std::forward<Clues>(clues).first, *it, std::forward<Clues>(clues).second))) {
+        return std::pair{true, it};
+      }
+    }
+  }
+  return std::pair{false, iter->second.end()};
+}
+
+template<typename T, template <typename...> class InnerC, template <typename...> class OuterC, typename Clue, typename... Clues>
+constexpr auto query_last(hetero_container<InnerC, OuterC> const & hc, Clue && clue, Clues &&... clues) ->
+    std::pair<bool, typename InnerC<T>::reverse_iterator> {
+  return query_last_if(hc, []<typename Prj, typename Obj, typename Arg>(Prj const & proj, Obj const & obj, Arg const & arg) {
+                     return std::invoke(proj, obj) == arg;
+                   }, std::forward<Clue>(clue), std::forward<Clues>(clues)...);
+}
+
+template<typename T, typename F, template <typename...> class InnerC, template <typename...> class OuterC, typename Clue, typename... Clues>
+constexpr auto query_last_if(hetero_container<InnerC, OuterC> const & hc, F && f, Clue && clue, Clues &&... clues) ->
+    std::pair<bool, typename InnerC<T>::reverse_iterator> {
+  auto iter = hetero_container<InnerC, OuterC>::template _items<T>.find(&hc);
+  if (iter != hetero_container<InnerC, OuterC>::template _items<T>.cend()) {
+    for(auto it = (*iter).second.rbegin(); it != (*iter).second.rend(); ++it) {
+      if(std::forward<F>(f)(std::forward<Clue>(clue).first, *it, std::forward<Clue>(clue).second) &&
+         (... && std::forward<F>(f)(std::forward<Clues>(clues).first, *it, std::forward<Clues>(clues).second))) {
+        return std::pair{true, it};
+      }
+    }
+  }
+  return std::pair{false, (*iter).second.rend()};
+}
+
 // ------------------------------------------ Specializations
 template <template <typename...> class InnerC>
 struct hetero_container<InnerC, std::list> {
@@ -631,15 +659,15 @@ public:
     *this = other;
   }
 
-  hetero_container(hetero_container && other) {
+  hetero_container(hetero_container && other)  noexcept {
     *this = std::move(other);
   }
 
-  template <typename... Ts> hetero_container(Ts const &... ts) {
+  template <typename... Ts> explicit hetero_container(Ts const &... ts) {
     (..., push_back(ts));
   }
 
-  template <typename... Ts> hetero_container(Ts &&... ts) {
+  template <typename... Ts> explicit hetero_container(Ts &&... ts) {
     (..., push_back(std::move(ts)));
   }
 
@@ -659,7 +687,7 @@ public:
     return *this;
   }
 
-  hetero_container & operator=(hetero_container && other) {
+  hetero_container & operator=(hetero_container && other)  noexcept {
     *this = other;
     return *this;
   }
@@ -768,7 +796,7 @@ public:
     }
   }
 
-  bool empty() const {
+  [[nodiscard]] bool empty() const {
     bool retval = true;
     for (auto && empty_function : _empty_functions) {
       if(!empty_function(*this)) {
@@ -780,7 +808,7 @@ public:
   }
 
   template<typename T>
-  size_t count_of() const {
+  [[nodiscard]] size_t count_of() const {
     auto [has, found] = find_this_key<T>();
     if(has) {
       return found->values.size();
@@ -788,7 +816,7 @@ public:
     return 0;
   }
 
-  size_t size() const {
+  [[nodiscard]] size_t size() const {
     size_t sum = 0;
     for (auto && size_function : _size_functions) {
       sum += size_function(*this);
@@ -859,23 +887,22 @@ public:
     return std::pair{false, std::end(it->values)};
   }
 
-  template<typename T, typename... Clues>
-  friend std::pair<bool, typename InnerC<T>::iterator> query_first(hetero_container const & hc, Clues &&... clues) {
-    static_assert(sizeof...(Clues) > 0, "At least one clue query must have");
+  template<typename T, typename Clue, typename... Clues>
+  friend std::pair<bool, typename InnerC<T>::iterator> query_first(hetero_container const & hc, Clue && clue, Clues &&... clues) {
     return query_first_if<T>(hc,
-                             [] <typename Prj, typename Obj, typename Argm>(Prj const &prj, Obj const &obj, Argm const &arg) {
+                             [] <typename Prj, typename Obj, typename Arg>(Prj const & prj, Obj const & obj, Arg const & arg) {
                                return std::invoke(prj, obj) == arg;
-                             }, std::forward<Clues>(clues)...);
+                             }, std::forward<Clue>(clue), std::forward<Clues>(clues)...);
   }
 
-  template<typename T, typename F, typename... Clues>
+  template<typename T, typename F, typename Clue, typename... Clues>
   friend std::pair<bool, typename InnerC<T>::iterator> query_first_if(hetero_container const & hc, F && f,
-                                                                      Clues &&... clues) {
-    static_assert(sizeof...(Clues) > 0, "At least one clue query must have");
+                                                                      Clue && clue, Clues &&... clues) {
     auto iter = hetero_container::_items<T>.find(&hc);
     if (iter != hetero_container::_items<T>.cend()) {
       for(auto it = (*iter).second.begin(); it != (*iter).second.end(); ++it) {
-        if((... && std::forward<F>(f)(std::forward<Clues>(clues).first, *it, std::forward<Clues>(clues).second))) {
+        if(std::forward<F>(f)(std::forward<Clue>(clue).first, *it, std::forward<Clue>(clue).second) &&
+            (... && std::forward<F>(f)(std::forward<Clues>(clues).first, *it, std::forward<Clues>(clues).second))) {
           return std::pair{true, it};
         }
       }
@@ -898,8 +925,8 @@ public:
   template<typename T, std::invocable<T> Prj, std::invocable<T>... Prjs, typename Arg, typename... Args>
   friend std::pair<bool, typename InnerC<T>::reverse_iterator> find_last(hetero_container const & hc,
                                                                          Prj const & prj, Prjs const &... prjs, Arg && arg, Args &&... args) {
-    static_assert(sizeof...(Prjs) + 1 == sizeof...(Args) + 1,
-                  "Quantity of the projections should be equal quantity of the arguments");
+    static_assert(sizeof...(Prjs) == sizeof...(Args),
+                  "Quantities of the projections and arguments should be equal");
     return find_last(hc,
                      []<typename Proj, typename Obj, typename Argm>(Proj const & proj, Obj const & obj, Argm const & arg) {
                        return std::invoke(proj, obj) == arg;
@@ -909,8 +936,8 @@ public:
   template<typename T, typename F, std::invocable<T> Prj, std::invocable<T>... Prjs, typename Arg, typename... Args>
   friend std::pair<bool, typename InnerC<T>::reverse_iterator> find_last(hetero_container const & hc, F && f,
                                                                          Prj const & prj, Prjs const &... prjs, Arg && arg, Args &&... args) {
-    static_assert(sizeof...(Prjs) + 1 == sizeof...(Args) + 1,
-                  "Quantity of the projections should be equal quantity of the arguments");
+    static_assert(sizeof...(Prjs) == sizeof...(Args),
+                  "Quantities of the projections and arguments should be equal");
     auto iter = hetero_container::_items<T>.find(&hc);
     if (iter != hetero_container::_items<T>.cend()) {
       for(auto it = (*iter).second.rbegin(); it != (*iter).second.rend(); ++it) {
