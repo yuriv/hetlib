@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.6)
-project(hetlib VERSION 0.0.1 LANGUAGES CXX DESCRIPTION "HetLib is a compile time heterogeneous container library")
+project(hetlib VERSION 0.0.1 LANGUAGES CXX DESCRIPTION "HetLib is a header-only heterogeneous container library")
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
@@ -28,10 +28,10 @@ set(DOCTEST_INCLUDE_DIR ${source_dir}/doctest CACHE INTERNAL "Path to include fo
 
 add_definitions(-DHETLIB_AUTHOR="Yuri Volodine")
 add_definitions(-DHETLIB_PRODUCT="hetlib")
-add_definitions(-DHETLIB_SUITE="Reg")
+add_definitions(-DHETLIB_SUITE="Std")
 add_definitions(-DHETLIB_VERSION="${CMAKE_PROJECT_VERSION}")
 add_definitions(-DHETLIB_DESCRIPTION="${CMAKE_PROJECT_DESCRIPTION}")
-add_definitions(-DHETLIB_FULLNAME="hetlib[Reg]")
+add_definitions(-DHETLIB_FULLNAME="hetlib[Std]")
 
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fPIC -O0 -Wall -Wextra -Wpedantic")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -fPIC -Wall -Wextra -Wpedantic -O2 -DNDEBUG")
