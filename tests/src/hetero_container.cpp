@@ -7,7 +7,7 @@
 #include "het/het.h"
 
 #include <string>
-#include <iostream>
+//#include <iostream>
 #include <tuple>
 
 #include "include/hetero_test.h"
@@ -15,78 +15,8 @@
 using namespace std::string_literals;
 using namespace std::string_view_literals;
 
-template <auto E> struct enum_wrapper {
-  static constexpr decltype(E) value = E;
-};
-
-template<std::size_t N> struct string_literal {
-  constexpr string_literal(const char (&str)[N]) {
-    std::copy_n(str, N, value);
-  }
-  char value[N];
-};
-
-template <string_literal S> struct string_wrapper {
-  char const * value = S.value;
-};
-
-template <auto E, string_literal S> struct pair {
-  decltype(E) first = E;
-  string_literal<sizeof(decltype(S)::value)> second = S;
-};
-
-template <string_literal S, auto E> struct pair_opposite {
-  string_literal<sizeof(decltype(S)::value)> first = S;
-  decltype(E) second = E;
-};
-
-template <auto E, string_literal S>
-constexpr auto make_dictionary_pair(std::false_type) {
-  return pair<E, S>{};
-}
-
-template <string_literal S, auto E>
-constexpr auto make_dictionary_pair(std::true_type) {
-  return pair_opposite<S, E>{};
-}
-
-auto print_container = []<template <typename...> class IC, template <typename...> class OC>(het::hetero_container<IC, OC> & hc)
-  { hc.template visit<int, double, char, std::string, nvo<float>>()(print_visitor{}); std::cout << std::endl; };
-
-TEST_CASE("heterogeneous list based container test") {
-  het::hetero_container<std::vector, std::list> hc_lv;
-  CHECK(hc_lv.empty());
-
-  hc_lv.push_back('a');
-  hc_lv.push_back(1);
-  hc_lv.push_back(2.0);
-  hc_lv.push_back(3);
-  hc_lv.push_back(std::string{"foo"});
-  hetero_rec hr;
-  hr._h.push_back(12);
-  hr._p.first = "name";
-  hr._p.second = "value";
-  hc_lv.push_back(hr);
-
-  CHECK(!hc_lv.empty());
-  CHECK(hc_lv.size() == 6);
-
-  CHECK(hc_lv.fraction<char>().size() == 1);
-  CHECK(hc_lv.fraction<char>()[0] == 'a');
-
-  CHECK(hc_lv.fraction<int>().size() == 2);
-  CHECK(hc_lv.fraction<int>()[0] == 1);
-  CHECK(hc_lv.fraction<int>()[1] == 3);
-
-  CHECK(hc_lv.fraction<std::string>().size() == 1);
-  CHECK(hc_lv.fraction<std::string>()[0] == "foo");
-
-  CHECK(hc_lv.fraction<hetero_rec>().size() == 1);
-  CHECK(hc_lv.fraction<hetero_rec>()[0]._h.fraction<int>().size() == 1);
-  CHECK(hc_lv.fraction<hetero_rec>()[0]._h.fraction<int>()[0] == 12);
-  CHECK(hc_lv.at<hetero_rec>(0)._p.first == "name");
-  CHECK(hc_lv.at<hetero_rec>(0)._p.second == "value");
-}
+//auto print_container = []<template <typename...> class IC, template <typename...> class OC>(het::hetero_container<IC, OC> & hc)
+//  { hc.template visit<int, double, char, std::string, nvo<float>>()(print_visitor{}); std::cout << std::endl; };
 
 TEST_CASE("heterogeneous deque based container test") {
   het::hdeque hc_dum;
@@ -148,66 +78,6 @@ TEST_CASE("heterogeneous vector based container test") {
   hr._h.push_back(12);
   hc.push_back(hr);
 
-  {
-    auto retval = het::find_first<int>(hc, [](auto const & value) { return value == 3; });
-//    std::cout << "+++++++++++++++++++++ " << (retval.first ? *retval.second : -1) << "\n";
-    CHECK(retval.first);
-    CHECK((*retval.second == 3));
-  }
-  {
-    het::hvector hb{
-        std::make_pair("R0"sv, "apple"sv),
-        std::make_pair("R1"sv, "orange"sv),
-        std::make_pair("R2"sv, "melon"sv),
-        std::make_pair("R3"sv, "thistle"sv),
-        std::make_pair("R4"sv, "trefoil"sv),
-        std::make_pair("R0"sv, "apple"sv),
-        std::make_pair("R1"sv, "orange"sv),
-        std::make_pair("R2"sv, "melon"sv),
-        std::make_pair("R3"sv, "thistle"sv),
-        std::make_pair("R4"sv, "trefoil"sv),
-        std::make_pair("R0"sv, "orange"sv),
-        std::make_pair("R1"sv, "apple"sv),
-        std::make_pair("R2"sv, "thistle"sv),
-        std::make_pair("R3"sv, "melon"sv),
-        std::make_pair("R4"sv, "trefoil"sv)
-    };
-
-    auto retval = het::query_first<std::pair<std::string_view, std::string_view>>(hb,
-                  std::pair{&std::pair<std::string_view, std::string_view>::first, std::string_view{"R0"}},
-                  std::pair{&std::pair<std::string_view, std::string_view>::second, std::string_view{"orange"}});
-
-//    std::cout << "+++++++++++++++++++++ " << (retval.first ? retval.second->first : std::make_pair(""sv, ""sv).first) << "\n";
-    CHECK(retval.first);
-    CHECK((*retval.second == std::make_pair("R0"sv, "orange"sv)));
-  }
-  {
-    auto retval = het::find_last<int>(hc, [](auto const & value) { return value == 1; });
-//    std::cout << "+++++++++++++++++++++ " << (retval.first ? *retval.second : -1) << "\n";
-    CHECK(retval.first);
-    CHECK((*retval.second == 1));
-  }
-  {
-    het::hvector hb;
-
-    hb.push_back(2);
-    hb.push_back(1);
-    hb.push_back(1);
-    hb.push_back(3);
-    hb.push_back(1);
-    hb.push_back(1);
-    hb.push_back(1);
-    hb.push_back(1);
-    hb.push_back(5);
-    std::vector<int> o;
-    het::find_all<int>(hb, std::back_inserter(o), [](auto const & value) { return value == 1; });
-//    for(auto && i : o) {
-//      std::cout << "+++++++++++++++++++++ " << i << "\n";
-//    }
-    CHECK(o.size() == 6);
-    CHECK(*o.cbegin() == 1);
-  }
-
   CHECK(!hc.empty());
   CHECK(hc.size() == 6);
 
@@ -241,4 +111,110 @@ TEST_CASE("heterogeneous vector based container test") {
 //  for(auto&& e : hc.fraction<int>()) {
 //    std::cout << e << "\n";
 //  }
+}
+
+TEST_CASE("vector based container het::find test") {
+  het::hvector hc;
+  CHECK(hc.empty());
+
+  hc.push_back('a');
+  hc.push_back(1);
+  hc.push_back(2.0);
+  hc.push_back(3);
+  hc.push_back("foo"s);
+  hetero_rec hr;
+  hr._h.push_back(12);
+  hc.push_back(hr);
+
+  auto retval = hc.find<hetero_rec>(std::make_pair([](hetero_rec const & value) { return value._h.fraction<int>()[0]; }, 12));
+//    std::cout << "+++++++++++++++++++++ " << (retval.first ? *retval.second : -1) << "\n";
+  CHECK(retval.first);
+  CHECK(retval.second->_h.fraction<int>()[0] == 12);
+}
+
+TEST_CASE("vector based container het::find_first/het::find_last test") {
+  het::hvector hc;
+  CHECK(hc.empty());
+
+  hc.push_back('a');
+  hc.push_back(1);
+  hc.push_back(2.0);
+  hc.push_back(3);
+  hc.push_back(3);
+  hc.push_back(0);
+  hc.push_back("foo"s);
+  hetero_rec hr;
+  hr._h.push_back(12);
+  hc.push_back(hr);
+
+  auto retval1 = het::find_first<int>(hc, [](auto const & value) { return value == 3; });
+  //    std::cout << "+++++++++++++++++++++ " << (retval1.first ? *retval1.second : -1) << "\n";
+  CHECK(retval1.first);
+  CHECK((*retval1.second == 3));
+
+  auto retval2 = het::find_last<int>(hc, [](auto const & value) { return value == 3; });
+//    std::cout << "+++++++++++++++++++++ " << (retval.2first ? *retval2.second : -1) << "\n";
+  CHECK(retval2.first);
+  CHECK((*retval2.second == 3));
+
+  CHECK((*retval1.second == *retval2.second));
+  CHECK((retval1.second + 1 == retval2.second));
+}
+
+TEST_CASE("vector based container het::find_all test") {
+  het::hvector hb;
+
+  hb.push_back(2);
+  hb.push_back(1);
+  hb.push_back(1);
+  hb.push_back(3);
+  hb.push_back(1);
+  hb.push_back(1);
+  hb.push_back(1);
+  hb.push_back(1);
+  hb.push_back(5);
+  std::vector<int> o;
+  het::find_all<int>(hb, std::back_inserter(o), [](auto const & value) { return value == 1 || value == 2; });
+  //    for(auto && i : o) {
+  //      std::cout << "+++++++++++++++++++++ " << i << "\n";
+  //    }
+  CHECK(o.size() == 7);
+  CHECK(*o.cbegin() == 2);
+  CHECK(*(o.cbegin() + 1) == 1);
+}
+
+TEST_CASE("vector based container het::query_first/het::query_last test") {
+  het::hvector hb{
+      std::make_pair("R0"sv, "apple"sv),
+      std::make_pair("R1"sv, "orange"sv),
+      std::make_pair("R2"sv, "melon"sv),
+      std::make_pair("R3"sv, "thistle"sv),
+      std::make_pair("R4"sv, "trefoil"sv),
+      std::make_pair("R0"sv, "apple"sv),
+      std::make_pair("R1"sv, "orange"sv),
+      std::make_pair("R2"sv, "melon"sv),
+      std::make_pair("R3"sv, "thistle"sv),
+      std::make_pair("R4"sv, "trefoil"sv),
+      std::make_pair("R0"sv, "orange"sv),
+      std::make_pair("R1"sv, "apple"sv),
+      std::make_pair("R2"sv, "thistle"sv),
+      std::make_pair("R3"sv, "melon"sv),
+      std::make_pair("R4"sv, "trefoil"sv)
+  };
+
+  auto retval1 = het::query_first<std::pair<std::string_view, std::string_view>>(hb,
+        std::pair{&std::pair<std::string_view, std::string_view>::first, "R0"sv},
+        std::pair{&std::pair<std::string_view, std::string_view>::second, "orange"sv});
+  //    std::cout << "+++++++++++++++++++++ " << (retval1.first ? retval1.second->first : std::make_pair(""sv, ""sv).first) << "\n";
+  CHECK(retval1.first);
+  CHECK((*retval1.second == std::make_pair("R0"sv, "orange"sv)));
+
+  auto retval2 = het::query_last<std::pair<std::string_view, std::string_view>>(hb,
+        std::pair{&std::pair<std::string_view, std::string_view>::first, "R2"sv},
+        std::pair{&std::pair<std::string_view, std::string_view>::second, "melon"sv});
+  //    std::cout << "+++++++++++++++++++++ " << (retval2.first ? retval2.second->first : std::make_pair(""sv, ""sv).first) << "\n";
+  CHECK(retval2.first);
+  CHECK((*retval2.second == std::make_pair("R2"sv, "melon"sv)));
+
+  CHECK((retval2.second + 3 == retval1.second));
 }

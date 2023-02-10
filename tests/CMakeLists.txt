@@ -17,3 +17,15 @@ target_link_libraries(het_tests
 )
 
 add_test(test het_tests)
+
+add_executable(het_bench
+        src/hetero_value_bench.cpp
+        src/hetero_container_bench.cpp
+        )
+
+target_link_libraries(het_bench
+        dl
+        pthread
+        ${GBENCH_LIB_DIR}/libbenchmark.a
+        ${GBENCH_LIB_DIR}/libbenchmark_main.a
+        )
