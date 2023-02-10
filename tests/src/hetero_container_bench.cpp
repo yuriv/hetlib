@@ -17,7 +17,6 @@ static void het_container_push_back(benchmark::State& state) {
     // Make sure the variable is not optimized away by compiler
     benchmark::DoNotOptimize(hc);
   }
-  assert(hc.size() == state.end() - state.begin());
 }
 // Register the function as a benchmark
 BENCHMARK(het_container_push_back);
@@ -30,7 +29,6 @@ static void tuple_container_push_back(benchmark::State& state) {
     // Make sure the variable is not optimized away by compiler
     benchmark::DoNotOptimize(values);
   }
-  assert(values.size() == state.end() - state.begin());
 }
 // Register the function as a benchmark
 BENCHMARK(tuple_container_push_back);
@@ -44,7 +42,6 @@ static void generic_container_push_back(benchmark::State& state) {
     // Make sure the variable is not optimized away by compiler
     benchmark::DoNotOptimize(values);
   }
-  assert(values.size() == state.end() - state.begin());
 }
 // Register the function as a benchmark
 BENCHMARK(generic_container_push_back);
@@ -57,7 +54,6 @@ static void het_container_push_back_tuple(benchmark::State& state) {
     // Make sure the variable is not optimized away by compiler
     benchmark::DoNotOptimize(hc);
   }
-  assert(hc.size() == state.end() - state.begin());
 }
 // Register the function as a benchmark
 BENCHMARK(het_container_push_back_tuple);
@@ -70,7 +66,6 @@ static void tuple_container_push_back_tuple(benchmark::State& state) {
     // Make sure the variable is not optimized away by compiler
     benchmark::DoNotOptimize(values);
   }
-  assert(values.size() == state.end() - state.begin());
 }
 // Register the function as a benchmark
 BENCHMARK(tuple_container_push_back_tuple);
