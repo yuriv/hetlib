@@ -26,23 +26,6 @@ ExternalProject_Add(
 ExternalProject_Get_Property(doctest source_dir)
 set(DOCTEST_INCLUDE_DIR ${source_dir}/doctest CACHE INTERNAL "")
 
-#ExternalProject_Add(
-#        googletest
-#        PREFIX ${CMAKE_BINARY_DIR}/3rd/googletest
-#        GIT_REPOSITORY https://github.com/google/googletest.git
-#        GIT_TAG main
-#        TIMEOUT 10
-#        UPDATE_COMMAND ${GIT_EXECUTABLE} pull
-#        CONFIGURE_COMMAND ""
-#        BUILD_COMMAND ""
-#        INSTALL_COMMAND ""
-#        LOG_DOWNLOAD ON
-#)
-#
-## Expose required variable (GTEST_INCLUDE_DIR) to parent scope
-#ExternalProject_Get_Property(googletest source_dir)
-#set(GTEST_INCLUDE_DIR ${source_dir}/googletest/googletest/include CACHE INTERNAL "")
-
 ExternalProject_Add(
     benchmark
     PREFIX ${CMAKE_BINARY_DIR}/3rd/benchmark
@@ -51,11 +34,6 @@ ExternalProject_Add(
     GIT_TAG main
     TIMEOUT 10
     UPDATE_COMMAND ${GIT_EXECUTABLE} pull
-    #COMMAND "${CMAKE_COMMAND} -E chdir ${CMAKE_BINARY_DIR}/3rd/benchmark/src/benchmark ${CMAKE_COMMAND} -E make_directory build"
-    #CONFIGURE_COMMAND #"cmake -E chdir \"${CMAKE_BINARY_DIR}/3rd/benchmark/src/benchmark\" cmake -E make_directory \"build\""
-    #    "${CMAKE_COMMAND} -E chdir \"build\" ${CMAKE_COMMAND} -DBENCHMARK_DOWNLOAD_DEPENDENCIES=on -DCMAKE_BUILD_TYPE=Release ../"
-    #BUILD_COMMAND "${CMAKE_COMMAND} --build \"build\" --config Release"
-    #INSTALL_COMMAND ""
     LOG_DOWNLOAD ON
 )
 
@@ -65,10 +43,6 @@ set(GBENCH_INCLUDE_DIR ${install_dir}/include CACHE INTERNAL "")
 
 ExternalProject_Get_Property(benchmark binary_dir)
 set(GBENCH_LIB_DIR ${install_dir}/lib64 CACHE INTERNAL "")
-
-#add_subdirectory(
-#        ${source_dir}
-#        ${binary_dir})
 
 add_definitions(-DHETLIB_AUTHOR="Yuri Volodine")
 add_definitions(-DHETLIB_PRODUCT="hetlib")
@@ -97,6 +71,8 @@ include_directories(
         ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${CMAKE_CURRENT_SOURCE_DIR}
     )
+
+add_subdirectory(examples)
 
 enable_testing()
 
