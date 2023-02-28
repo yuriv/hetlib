@@ -26,18 +26,32 @@ template <typename T> concept projection_clause = requires(T t) {
   std::equality_comparable<std::decay_t<decltype(t.second)>>;
 };
 
-template <template <typename, typename, typename...> class C> concept is_assoc_container = requires {
+template <template <typename, typename, typename...> class C>
+concept is_assoc_container = requires {
   typename C<int, int>::key_type;
 };
 
-template <template <typename, typename, typename...> class C> requires is_assoc_container<C>
+template <typename K, typename V, template <typename, typename, typename...> class C>
+concept is_suitable_container = requires(C<K, V> c) {
+  typename C<K, V>::key_type;
+  typename C<K, V>::iterator;
+  { std::begin(c) } -> std::convertible_to<typename C<K, V>::iterator>;
+  { std::end(c) } -> std::convertible_to<typename C<K, V>::iterator>;
+  { c.find(std::declval<K>()) } -> std::convertible_to<typename C<K, V>::iterator>;
+  { c.insert_or_assign(std::declval<K>(), std::declval<V>()) } -> std::convertible_to<std::pair<typename C<K, V>::iterator, bool>>;
+};
+
+template <template <typename, typename, typename...> class C>
 class hetero_value {
   template <typename T> static C<hetero_value const *, T> _values;
+  template <typename T> static consteval C<hetero_value const *, T> & values() requires is_suitable_container<hetero_value const *, T, C> {
+    return _values<T>;
+  }
 
 public:
   hetero_value() = default;
   hetero_value(hetero_value const & value) {
-    assign(value);
+    *this = value;
   }
   hetero_value(hetero_value && value) noexcept {
     *this = std::move(value);
@@ -71,7 +85,7 @@ public:
   }
 
   void assign(hetero_value && value) {
-    assign(static_cast<hetero_value const &>(value));
+    assign(static_cast<hetero_value const *>(value));
   }
 
   template <typename... Ts> void assign_values(Ts const &... values) {
@@ -85,7 +99,8 @@ public:
   }
 
   template <typename T> [[nodiscard]] bool contains() const {
-    return hetero_value::_values<T>.find(this) != std::end(hetero_value::_values<T>);
+    auto & vs = hetero_value::values<T>();
+    return vs.find(this) != std::end(vs);
   }
 
   /**
@@ -95,11 +110,11 @@ public:
    * \throw std::range_error if requested value not presented
    */
   template <typename T> [[nodiscard]] const T & value() const {
-    auto it = hetero_value::_values<T>.find(this);
-    if(it == std::end(hetero_value::_values<T>)) {
-      throw std::range_error(AT "Out of range");
+    auto & vs = hetero_value::values<T>();
+    if(auto it = vs.find(this); it != std::end(vs)) {
+      return it->second;
     }
-    return it->second;
+    throw std::range_error(AT "Out of range");
   }
 
   /**
@@ -109,11 +124,11 @@ public:
    * \throw std::range_error if requested value not presented
    */
   template <typename T> [[nodiscard]] T & value() {
-    auto it = hetero_value::_values<T>.find(this);
-    if(it == std::end(hetero_value::_values<T>)) {
-      throw std::range_error(AT "Out of range");
+    auto & vs = hetero_value::values<T>();
+    if(auto it = vs.find(this); it != std::end(vs)) {
+      return it->second;
     }
-    return it->second;
+    throw std::range_error(AT "Out of range");
   }
 
  /**
@@ -126,24 +141,17 @@ public:
   }
 
   template <typename T> [[nodiscard]] const T & value_or_add(T && value = T{}) {
-    auto it = hetero_value::_values<T>.find(this);
-    if(it == std::end(hetero_value::_values<T>)) {
-      add_value(std::forward<T>(value));
+    auto & vs = hetero_value::values<T>();
+    if(auto it = vs.find(this); it == std::end(vs)) {
+      return add_value(std::forward<T>(value))->second;
+    } else {
+      return it->second;
     }
-    return it->second;
   }
-
-//  template <typename T, typename... Ts> void add_values(T const & value, Ts &&... values) {
-//    add_value(std::move(value)), (..., add_value(std::forward<Ts>(values)));
-//  }
 
   template <typename T, typename... Ts> void add_values(T && value, Ts &&... values) {
-    add_value(std::forward<T>(value)), (..., add_value(std::forward<Ts>(values)));
+    add_value(std::forward<T>(value)), (add_value(std::forward<Ts>(values)), ...);
   }
-
-//  template <typename T, typename... Ts> void modify_values(T const & value, Ts &&... values) {
-//    add_value(value), (..., add_value(values));
-//  }
 
   template <typename T, typename... Ts> void modify_values(T && value, Ts &&... values) {
     add_value(std::forward<T>(value)), (..., add_value(std::forward<Ts>(values)));
@@ -171,8 +179,8 @@ public:
   template <typename T, typename... Ts>
   [[nodiscard]] constexpr auto visit() const {
     return [this]<typename F>(F && f) -> VisitorReturn {
-      return (visit_single<std::decay_t<F>, T>(std::forward<F>(f)) == VisitorReturn::Break) ||
-        (... || (visit_single<std::decay_t<F>, Ts>(std::forward<F>(f)) == VisitorReturn::Break)) ?
+      return (visit_single<F, T>(std::forward<F>(f)) == VisitorReturn::Break) ||
+        (... || (visit_single<F, Ts>(std::forward<F>(f)) == VisitorReturn::Break)) ?
           VisitorReturn::Break : VisitorReturn::Continue;
     };
   }
@@ -196,82 +204,70 @@ public:
   template <typename T, typename... Ts>
   [[nodiscard]] constexpr auto match() const {
     return [this]<typename F, typename... Fs>(F && f, Fs &&... fs) {
-      return match_single<T>(f, fs...) && (... && match_single<Ts>(f, fs...));
+      return match_single<T>(f, fs...) || (... && match_single<Ts>(f, fs...));
     };
   }
 
 private:
-  template <typename T, typename... Fs> constexpr auto match_single(Fs &&... fs) {
+  template <typename T, typename... Fs> constexpr bool match_single(Fs &&... fs) {
     auto f = stg::util::fn_select_applicable<T>::check(std::forward<Fs>(fs)...);
-    auto iter = hetero_value::_values<T>.find(this);
-    if (iter != hetero_value::_values<T>.cend()) {
-      return std::make_optional(f(iter->second));
-    }
-    return std::make_optional(VisitorReturn::Continue);
-  }
-
-  template<typename T, typename U> using visit_function = decltype(std::declval<T>().operator()(std::declval<U&>()));
-  template<typename T, typename U> using equal_function = decltype(std::declval<T>().operator()(std::declval<U&>(), std::declval<U&>()));
-
-  template<typename T, typename U> static constexpr bool has_visit_v = std::experimental::is_detected<visit_function, T, U>::value;
-  template<typename T, typename U> static constexpr bool has_equal_v = std::experimental::is_detected<equal_function, T, U>::value;
-
-  template<typename T, typename U> std::optional<VisitorReturn> visit_single(T const & visitor) {
-    return visit_single<std::decay_t<T>, U>(std::move(visitor));
-  }
-
-  template<typename T, typename U> constexpr std::optional<VisitorReturn> visit_single(T && visitor) const {
-    static_assert(has_visit_v<T, U>, "Visitor should accept provided type");
-    auto iter = hetero_value::_values<U>.find(this);
-    if (iter != hetero_value::_values<U>.cend()) {
-      return visitor(iter->second);
-    }
-    return std::make_optional(VisitorReturn::Continue);
-  }
-
-  template<typename T, typename U> constexpr bool equal_single(T && cmp, U const & arg) const {
-    static_assert(has_equal_v<T, U>, "Comparator should accept provided type");
-    auto iter = hetero_value::_values<U>.find(this);
-    if (iter != hetero_value::_values<U>.cend()) {
-      return cmp(iter->second, arg);
+    auto & vs = hetero_value::values<T>();
+    if(auto it = vs.find(this); it != std::end(vs)) {
+      return f(it->second);
     }
     return false;
   }
 
-  template <typename T> auto add_value(T const & value) {
+  template<typename T, typename U> constexpr VisitorReturn visit_single(T && visitor) const {
+    static_assert(std::is_invocable_v<T, U>, "predicate should accept provided type");
+    auto & vs = hetero_value::values<U>();
+    if(auto it = vs.find(this); it != std::end(vs)) {
+      return visitor(it->second);
+    }
+    return VisitorReturn::Continue;
+  }
+
+  template<typename T, typename U> constexpr bool equal_single(T && cmp, U const & arg) const {
+    static_assert(std::is_invocable_v<T, U, U>, "predicate should accept provided type");
+    auto & vs = hetero_value::values<U>();
+    if(auto it = vs.find(this); it != std::end(vs)) {
+      return cmp(it->second, arg);
+    }
+    return false;
+  }
+
+  template <typename T> auto add_value(T const & value) -> typename C<hetero_value const *, T>::iterator {
     return add_value(std::move(value));
   }
 
-  template <typename T> auto add_value(T && value) {
-    using To = std::decay_t<T>;
-    auto it = register_operations<To>();
-    if(it != std::end(hetero_value::_values<To>)) {
-      it->second = std::forward<To>(value);
-    } else {
-      hetero_value::_values<To>[this] = std::forward<To>(value);
-      it = hetero_value::_values<To>.find(this);
-    }
-    return it;
+  template <typename T> auto add_value(T & value) -> typename C<hetero_value const *, T>::iterator {
+    return add_value(std::move(value));
+  }
+
+  template <typename T> auto add_value(T && value) -> typename C<hetero_value const *, T>::iterator {
+    register_operations<T>();
+    auto & vs = hetero_value::values<T>();
+    return vs.insert_or_assign(this, std::forward<T>(value)).first;
   }
 
   template <typename T> void erase_value() {
     if(contains<T>()) {
-      hetero_value::_values<T>.erase(this);
+      hetero_value::values<T>().erase(this);
       _arity--;
     }
   }
 
-  template<typename T> typename C<hetero_value const *, T>::iterator register_operations() {
-    auto it = _values<T>.find(this);
-    // don't have it yet, so create functions for printing, copying, moving, and destroying
-    if (it == std::end(_values<T>)) {
-      _clear_functions.template emplace_back([](hetero_value & c) {
-        hetero_value::_values<T>.erase(&c);
-      });
+  template<typename T> auto register_operations() -> typename C<hetero_value const *, T>::iterator {
+    auto & vs = hetero_value::values<T>();
+    auto it = vs.find(this);
+    // don't have it yet, so create functions for copying and destroying
+    if (it == std::end(vs)) {
+      _clear_functions.template emplace_back([](hetero_value & c) { hetero_value::values<T>().erase(&c); });
       // if someone copies me, they need to call each copy_function and pass themself
       _copy_functions.template emplace_back([](const hetero_value & from, hetero_value & to) {
         if(&from != &to) {
-          hetero_value::_values<T>[&to] = hetero_value::_values<T>[&from];
+          auto & values = hetero_value::values<T>();
+          values.insert_or_assign(&to, from.template value<T>());
         }
       });
       _arity++;
@@ -280,11 +276,11 @@ private:
   }
 
   std::size_t _arity{0};
-  std::vector<std::function<void(hetero_value&)>> _clear_functions;
-  std::vector<std::function<void(const hetero_value&, hetero_value&)>> _copy_functions;
+  std::vector<std::function<void(hetero_value &)>> _clear_functions;
+  std::vector<std::function<void(const hetero_value &, hetero_value &)>> _copy_functions;
 };
 
-template <template <typename, typename, typename...> typename C> requires is_assoc_container<C>
+template <template <typename, typename, typename...> typename C>
 template <typename T> C<hetero_value<C> const *, T> hetero_value<C>::_values;
 
 template <template <typename...> class InnerC, template <typename, typename, typename...> class OuterC> requires is_assoc_container<OuterC>
@@ -292,15 +288,15 @@ class hetero_container {
   template<typename T> static OuterC<hetero_container const *, InnerC<T>> _items;
 
 public:
-  template <typename T> using iterator = typename OuterC<hetero_container const *, InnerC<T>>::iterator;
-  template <typename T> using const_iterator = typename OuterC<hetero_container const *, InnerC<T>>::const_iterator;
-  template <typename T> using reverse_iterator = typename OuterC<hetero_container const *, InnerC<T>>::reverse_iterator;
-  template <typename T> using const_reverse_iterator = typename OuterC<hetero_container const *, InnerC<T>>::const_reverse_iterator;
+//  template <typename T> using iterator = typename OuterC<hetero_container const *, InnerC<T>>::iterator;
+//  template <typename T> using const_iterator = typename OuterC<hetero_container const *, InnerC<T>>::const_iterator;
+//  template <typename T> using reverse_iterator = typename OuterC<hetero_container const *, InnerC<T>>::reverse_iterator;
+//  template <typename T> using const_reverse_iterator = typename OuterC<hetero_container const *, InnerC<T>>::const_reverse_iterator;
 
   template <typename T> using inner_iterator = typename InnerC<T>::iterator;
-  template <typename T> using inner_const_iterator = typename InnerC<T>::const_iterator;
-  template <typename T> using inner_reverse_iterator = typename InnerC<T>::reverse_iterator;
-  template <typename T> using inner_const_reverse_iterator = typename InnerC<T>::const_reverse_iterator;
+//  template <typename T> using inner_const_iterator = typename InnerC<T>::const_iterator;
+//  template <typename T> using inner_reverse_iterator = typename InnerC<T>::reverse_iterator;
+//  template <typename T> using inner_const_reverse_iterator = typename InnerC<T>::const_reverse_iterator;
 
   hetero_container() = default;
   hetero_container(hetero_container const & other) {
@@ -831,26 +827,22 @@ using hvector = hash_key_container<std::vector>;
 using hdeque = hash_key_container<std::deque>;
 
 template <typename T, template <typename...> typename C>
-constexpr T & get(het::hetero_value<C> & hv) {
-  static_assert(!std::is_void_v<T>, "T must not be void");
+constexpr T & get(het::hetero_value<C> & hv) requires (!std::is_void_v<T>) {
   return hv.template value<T>();
 }
 
 template <typename T, template <typename...> typename C>
-constexpr T && get(het::hetero_value<C> && hv) {
-  static_assert(!std::is_void_v<T>, "T must not be void");
+constexpr T && get(het::hetero_value<C> && hv) requires (!std::is_void_v<T>) {
   return std::move(hv.template value<T>());
 }
 
 template <typename T, template <typename...> typename C>
-constexpr T const & get(het::hetero_value<C> const & hv) {
-  static_assert(!std::is_void_v<T>, "T must not be void");
+constexpr T const & get(het::hetero_value<C> const & hv) requires (!std::is_void_v<T>) {
   return hv.template value<T>();
 }
 
 template <typename T, template <typename...> typename C>
-constexpr T const && get(het::hetero_value<C> const && hv) {
-  static_assert(!std::is_void_v<T>, "T must not be void");
+constexpr T const && get(het::hetero_value<C> const && hv) requires (!std::is_void_v<T>) {
   return std::move(hv.template value<T>());
 }
 
@@ -861,14 +853,12 @@ constexpr T const * get_if(het::hetero_value<C> const & hv) noexcept {
 }
 
 template <typename T, template <typename...> typename C>
-constexpr T * get_if(het::hetero_value<C> & hv) noexcept {
-  static_assert(!std::is_void_v<T>, "T must not be void");
+constexpr T * get_if(het::hetero_value<C> & hv) noexcept requires (!std::is_void_v<T>) {
   return hv.template contains<T>() ? std::addressof(get<T>(hv)) : nullptr;
 }
 
 template <typename T, template <typename...> typename C>
-constexpr T * get_if(het::hetero_value<C> && hv) noexcept {
-  static_assert(!std::is_void_v<T>, "T must not be void");
+constexpr T * get_if(het::hetero_value<C> && hv) noexcept requires (!std::is_void_v<T>) {
   return hv.template contains<T>() ? std::addressof(get<T>(hv)) : nullptr;
 }
 

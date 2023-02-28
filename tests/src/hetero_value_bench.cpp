@@ -4,7 +4,7 @@
 
 #include <benchmark/benchmark.h>
 
-#include <variant>
+#include <tuple>
 
 #include "het/het.h"
 
@@ -22,16 +22,16 @@ static void het_value_single_ctor(benchmark::State& state) {
 // Register the function as a benchmark
 BENCHMARK(het_value_single_ctor);
 
-static void variant_value_single_ctor(benchmark::State& state) {
+static void tuple_value_single_ctor(benchmark::State& state) {
   // Code inside this loop is measured repeatedly
   for (auto _ : state) {
-    std::variant<int> v(1);
+    std::tuple<int> v = std::make_tuple(1);
     // Make sure the variable is not optimized away by compiler
     benchmark::DoNotOptimize(v);
   }
 }
 // Register the function as a benchmark
-BENCHMARK(variant_value_single_ctor);
+BENCHMARK(tuple_value_single_ctor);
 
 static void generic_value_single_ctor(benchmark::State& state) {
   // Code inside this loop is measured repeatedly
@@ -56,22 +56,17 @@ static void het_value_ctor(benchmark::State& state) {
 // Register the function as a benchmark
 BENCHMARK(het_value_ctor);
 
-static void variant_value_ctor(benchmark::State& state) {
-  std::array<std::variant<int, float, double, char, std::string_view, std::string>, 6> values;
+static void tuple_value_ctor(benchmark::State& state) {
   // Code inside this loop is measured repeatedly
   for (auto _ : state) {
-    values[0] = 1;
-    values[1] = 1.2f;
-    values[2] = 3.;
-    values[3] = 'c';
-    values[4] = "stringview"sv;
-    values[5] = "string"s;
+    std::tuple<int, float, double, char, std::string_view, std::string> values =
+        std::make_tuple(1, 1.2f, 3., 'c', "stringview"sv, "string"s);
     // Make sure the variable is not optimized away by compiler
     benchmark::DoNotOptimize(values);
   }
 }
 // Register the function as a benchmark
-BENCHMARK(variant_value_ctor);
+BENCHMARK(tuple_value_ctor);
 
 static void generic_value_ctor(benchmark::State& state) {
   // Code inside this loop is measured repeatedly
@@ -112,23 +107,17 @@ static void het_value_access(benchmark::State& state) {
 // Register the function as a benchmark
 BENCHMARK(het_value_access);
 
-static void variant_value_access(benchmark::State& state) {
+static void tuple_value_access(benchmark::State& state) {
+  std::tuple<int, float, double, char, std::string_view, std::string> values =
+      std::make_tuple(1, 1.2f, 3., 'c', "stringview"sv, "string"s);
   // Code inside this loop is measured repeatedly
-  std::array<std::variant<int, float, double, char, std::string_view, std::string>, 6> values;
-  // Code inside this loop is measured repeatedly
-  values[0] = 1;
-  values[1] = 1.2f;
-  values[2] = 3.;
-  values[3] = 'c';
-  values[4] = "stringview"sv;
-  values[5] = "string"s;
   for (auto _ : state) {
-    auto i = std::get<int>(values[0]);
-    auto f = std::get<float>(values[1]);
-    auto d = std::get<double>(values[2]);
-    auto c = std::get<char>(values[3]);
-    auto sv = std::get<std::string_view>(values[4]);
-    auto s = std::get<std::string>(values[5]);
+    auto i = std::get<int>(values);
+    auto f = std::get<float>(values);
+    auto d = std::get<double>(values);
+    auto c = std::get<char>(values);
+    auto sv = std::get<std::string_view>(values);
+    auto s = std::get<std::string>(values);
     // Make sure the variable is not optimized away by compiler
     benchmark::DoNotOptimize(i);
     benchmark::DoNotOptimize(f);
@@ -139,7 +128,7 @@ static void variant_value_access(benchmark::State& state) {
   }
 }
 // Register the function as a benchmark
-BENCHMARK(variant_value_access);
+BENCHMARK(tuple_value_access);
 
 static void generic_value_access(benchmark::State& state) {
   // Code inside this loop is measured repeatedly
@@ -180,9 +169,9 @@ static void het_value_single_access(benchmark::State& state) {
 // Register the function as a benchmark
 BENCHMARK(het_value_single_access);
 
-static void variant_value_single_access(benchmark::State& state) {
+static void tuple_value_single_access(benchmark::State& state) {
   // Code inside this loop is measured repeatedly
-  std::variant<int> v(1);
+  std::tuple<int> v = std::make_tuple(1);
   for (auto _ : state) {
     auto i = std::get<int>(v);
     // Make sure the variable is not optimized away by compiler
@@ -190,7 +179,7 @@ static void variant_value_single_access(benchmark::State& state) {
   }
 }
 // Register the function as a benchmark
-BENCHMARK(variant_value_single_access);
+BENCHMARK(tuple_value_single_access);
 
 static void generic_value_single_access(benchmark::State& state) {
   // Code inside this loop is measured repeatedly
