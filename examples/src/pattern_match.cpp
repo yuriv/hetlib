@@ -16,6 +16,5 @@ int main() {
       [](std::string_view){std::cout << 2;},
       [](auto){std::cout << "default";} // should be last
     );
-
   return 0;
 }

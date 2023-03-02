@@ -9,6 +9,7 @@
 #include <string>
 //#include <iostream>
 #include <tuple>
+#include <sstream>
 
 #include "include/hetero_test.h"
 
@@ -217,4 +218,20 @@ TEST_CASE("vector based container het::query_first/het::query_last test") {
   CHECK((*retval2.second == std::make_pair("R2"sv, "melon"sv)));
 
   CHECK((retval2.second + 3 == retval1.second));
+}
+
+TEST_CASE("vector based container het::match test") {
+  std::stringstream ss;
+  het::hvector{""sv, std::make_tuple(1, 2.f), ""s, 1.}
+      .match<
+          std::string_view/*exactly*/,
+          std::tuple<int, float>/*exactly*/,
+          double/*default*/,
+          std::string/*string_view cast*/,
+          int */*absent*/>()(
+            [&ss](std::tuple<int, float>) { ss << 1; },
+            [&ss](std::string_view) { ss << 2; },
+            [&ss](auto) { ss << "default"; } // should be last
+          );
+  CHECK(ss.str() == "21default2");
 }
