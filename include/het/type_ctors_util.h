@@ -32,6 +32,8 @@
 #include <type_traits>
 #include <functional>
 
+#include <concepts>
+
 namespace metaf {
 namespace util {
 

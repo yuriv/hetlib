@@ -5,7 +5,7 @@
 #ifndef HETLIB_UNCOMMON_DEFINITIONS_H
 #define HETLIB_UNCOMMON_DEFINITIONS_H
 
-#include "version_config.h"
+#include "generated/version_config.h"
 
 #define STRINGIFY(x) #x
 #define TOSTRING(x) STRINGIFY(x)
