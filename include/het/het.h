@@ -51,13 +51,13 @@ class hetero_value {
 public:
   hetero_value() = default;
   hetero_value(hetero_value const & value) {
-    *this = value;
+    assign(value);
   }
   hetero_value(hetero_value && value) noexcept {
-    *this = std::move(value);
+    assign(std::move(value));
   }
   template <typename... Ts> explicit hetero_value(Ts &&... ts) {
-    (..., add_value(std::forward<Ts>(ts)));
+    (add_value(std::forward<Ts>(ts)), ...);
   }
 
   virtual ~hetero_value() {
@@ -84,18 +84,18 @@ public:
     }
   }
 
-  void assign(hetero_value && value) {
+  void assign(hetero_value && value) noexcept {
     assign(static_cast<hetero_value const *>(value));
   }
 
   template <typename... Ts> void assign_values(Ts const &... values) {
     clear();
-    (..., add_value(values));
+    (add_value(values), ...);
   }
 
   template <typename... Ts> void assign_values(Ts &&... values) {
     clear();
-    (..., add_value(std::forward<Ts>(values)));
+    (add_value(std::forward<Ts>(values)), ...);
   }
 
   template <typename T> [[nodiscard]] bool contains() const {
@@ -268,7 +268,11 @@ private:
       _copy_functions.template emplace_back([](const hetero_value & from, hetero_value & to) {
         if(&from != &to) {
           auto & vs = hetero_value::values<T>();
-          vs.insert_or_assign(&to, from.template value<T>());
+          if constexpr(std::is_copy_constructible_v<T>) {
+            vs.insert_or_assign(&to, from.template value<T>());
+          } else {
+            vs.insert_or_assign(&to, std::move(const_cast<hetero_value&>(from).template value<T>()));
+          }
         }
       });
       _arity++;
@@ -305,11 +309,11 @@ public:
 
   hetero_container() = default;
   hetero_container(hetero_container const & other) {
-    *this = other;
+    assign(other);
   }
 
   hetero_container(hetero_container && other)  noexcept {
-    *this = std::move(other);
+    assign(std::move(other));
   }
 
   template <typename... Ts> explicit hetero_container(Ts const &... ts) {
@@ -325,6 +329,16 @@ public:
   }
 
   hetero_container & operator=(hetero_container const & other) {
+    assign(other);
+    return *this;
+  }
+
+  hetero_container & operator=(hetero_container && other) noexcept {
+    assign(std::move(other));
+    return *this;
+  }
+
+  void assign(hetero_container const & other) {
     clear();
     _clear_functions = other._clear_functions;
     _copy_functions = other._copy_functions;
@@ -333,14 +347,11 @@ public:
     for (auto && copy_function : _copy_functions) {
       copy_function(other, *this);
     }
-    return *this;
   }
 
-  hetero_container & operator=(hetero_container && other) noexcept {
-    *this = other;
-    return *this;
+  void assign(hetero_container && other) noexcept {
+    assign(static_cast<hetero_container const &>(other));
   }
-
   /**
    * @brief Inserts new element t before position pos
    * @tparam T -- type bucket
@@ -603,10 +614,6 @@ public:
     std::pair<bool, typename hetero_container<IC, OC>::template inner_iterator<T>>;
 
 private:
-//  template<typename T, typename U> using visit_function = decltype(std::declval<T>().operator()(std::declval<U&>()));
-
-//  template<typename T, typename U> static constexpr bool has_visit_v = std::experimental::is_detected<visit_function, T, U>::value;
-
   // inserts new key or access existing
   template<typename T> auto push_front_single(const T & t) -> hetero_container::inner_iterator<T> {
     return push_front_single(std::move(t));
@@ -676,7 +683,11 @@ private:
       _copy_functions.emplace_back([](const hetero_container & from, hetero_container & to) {
         auto & items = hetero_container::items<T>();
         if(&to != &from) {
-          items[&to] = items[&from];
+          if constexpr(std::is_copy_constructible_v<T>) {
+            items[&to] = items[&from];
+          } else {
+            items[&to] = std::move(items[&from]);
+          }
         }
       });
       _size_functions.emplace_back([](const hetero_container & c) { return hetero_container::items<T>().at(&c).size(); });

@@ -10,6 +10,7 @@
 //#include <iostream>
 #include <tuple>
 #include <sstream>
+#include <memory>
 
 #include "include/hetero_test.h"
 
@@ -64,6 +65,11 @@ TEST_CASE("heterogeneous deque based container test") {
 //        return het::VisitorReturn::Continue;
 //      });
 //  std::cout << " \n-------------------------\n";
+}
+
+TEST_CASE("heterogeneous vector move ctor test") {
+  het::hvector hc(std::make_unique<int>(123));
+  CHECK(*hc.template fraction<std::unique_ptr<int>>()[0].get() == *std::make_unique<int>(123).get());
 }
 
 TEST_CASE("heterogeneous vector based container test") {

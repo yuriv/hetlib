@@ -37,6 +37,11 @@ TEST_CASE("heterogeneous value one-by-one ctor test") {
   CHECK_EQ(hv.value<double>(), 4.);
 }
 
+TEST_CASE("heterogeneous value move ctor test") {
+  het::hvalue hv(std::make_unique<int>(123));
+  CHECK(*hv.template value<std::unique_ptr<int>>().get() == *std::make_unique<int>(123).get());
+}
+
 TEST_CASE("heterogeneous value bulk ctor test") {
   het::hvalue hv;
   hv.add_values(1, 2l, std::string_view("string"), 3.f, 'c', 4.);
