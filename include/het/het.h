@@ -915,6 +915,59 @@ constexpr T * get_if(het::hetero_value<C> && hv) noexcept requires (!std::is_voi
   return hv.template contains<T>() ? std::addressof(get<T>(hv)) : nullptr;
 }
 
+namespace {
+
+template<typename T>
+struct type_offset {
+  static std::size_t offset;
+
+  explicit type_offset(T &&) noexcept { type_offset::offset++; }
+
+  static constexpr void reset() { type_offset::offset = 0; }
+};
+
+template<typename T> std::size_t type_offset<T>::offset = 0;
+
+} // namespace anonymous
+
+template <typename... Ts, template <typename...> class C>
+auto to_tuple(hetero_value<C> const & hv) -> std::tuple<Ts...> {
+  return to_tuple<Ts...>(std::move(hv));
+}
+
+template <typename... Ts, template <typename...> class C>
+auto to_tuple(hetero_value<C> & hv) -> std::tuple<Ts...> {
+  return to_tuple<Ts...>(std::move(hv));
+}
+
+template <typename... Ts, template <typename...> class C>
+auto to_tuple(hetero_value<C> && hv) -> std::tuple<Ts...> {
+  if(!(hv.template contains<Ts>() && ...)) {
+    throw std::out_of_range("try to access unbounded value");
+  }
+  (type_offset<Ts>::reset(), ...);
+  return {hv.template value<Ts>() ...};
+}
+
+template <typename... Ts, template <typename...> class InnerC, template <typename, typename, typename...> class OuterC>
+auto to_tuple(hetero_container<InnerC, OuterC> const & hv) -> std::tuple<Ts...> {
+  return to_tuple<Ts...>(std::move(hv));
+}
+
+template <typename... Ts, template <typename...> class InnerC, template <typename, typename, typename...> class OuterC>
+auto to_tuple(hetero_container<InnerC, OuterC> & hv) -> std::tuple<Ts...> {
+  return to_tuple<Ts...>(std::move(hv));
+}
+
+template <typename... Ts, template <typename...> class InnerC, template <typename, typename, typename...> class OuterC>
+auto to_tuple(hetero_container<InnerC, OuterC> && hv) -> std::tuple<Ts...> {
+  if(!(hv.template contains<Ts>() && ...)) {
+    throw std::out_of_range("try to access unbounded value");
+  }
+  (type_offset<Ts>::reset(), ...);
+  return {hv.template fraction<Ts>().at(type_offset(Ts{}).offset - 1) ...};
+}
+
 } // namespace het
 
 #endif // HETLIB_HET_H

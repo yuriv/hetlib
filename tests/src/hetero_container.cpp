@@ -67,6 +67,30 @@ TEST_CASE("heterogeneous deque based container test") {
 //  std::cout << " \n-------------------------\n";
 }
 
+TEST_CASE("heterogeneous vector unbounded value access") {
+  het::hvector hc;
+  CHECK_THROWS_AS(het::to_tuple<int>(hc), std::out_of_range);
+}
+
+TEST_CASE("heterogeneous vector to tuple transform") {
+  het::hvector hc;
+  CHECK(hc.empty());
+
+  hc.push_back('a');
+  hc.push_back(1);
+  hc.push_back(2.0);
+  hc.push_back(3);
+  hc.push_back(std::string{"foo"});
+
+  auto [i1, i2, d, s, c] = het::to_tuple<int, int, double, std::string, char>(hc);
+
+  CHECK(i1 == 1);
+  CHECK(i2 == 3);
+  CHECK(d == 2.0);
+  CHECK(s == "foo"s);
+  CHECK(c == 'a');
+}
+
 TEST_CASE("heterogeneous vector move ctor test") {
   het::hvector hc(std::make_unique<int>(123));
   CHECK(*hc.template fraction<std::unique_ptr<int>>()[0].get() == *std::make_unique<int>(123).get());

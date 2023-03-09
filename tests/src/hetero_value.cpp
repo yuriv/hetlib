@@ -37,6 +37,22 @@ TEST_CASE("heterogeneous value one-by-one ctor test") {
   CHECK_EQ(hv.value<double>(), 4.);
 }
 
+TEST_CASE("heterogeneous value unbounded value access") {
+  het::hvalue hv;
+  CHECK_THROWS_AS(het::to_tuple<int>(hv), std::out_of_range);
+}
+
+TEST_CASE("heterogeneous value to tuple transform") {
+  het::hvalue hv('a', 1, 2.0, "foo"s);
+
+  auto [i1, d, s, c] = het::to_tuple<int, double, std::string, char>(hv);
+
+  CHECK(i1 == 1);
+  CHECK(d == 2.0);
+  CHECK(s == "foo"s);
+  CHECK(c == 'a');
+}
+
 TEST_CASE("heterogeneous value move ctor test") {
   het::hvalue hv(std::make_unique<int>(123));
   CHECK(*hv.template value<std::unique_ptr<int>>().get() == *std::make_unique<int>(123).get());
