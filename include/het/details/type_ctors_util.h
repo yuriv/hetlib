@@ -34,8 +34,7 @@
 
 #include <concepts>
 
-namespace metaf {
-namespace util {
+namespace metaf::util {
 
 /**
  * \brief Currying F over argument Args...
@@ -555,7 +554,6 @@ auto foldl(F&& f, typename C<Ts...>::value_type const& a, C<Ts...>&& c)
 
 } // namespace containers
 
-} // namespace util
 } // namespace metaf
 
 #endif /* TYPE_CONSTRS_UTIL_H */

@@ -6,23 +6,23 @@
 
 #include <tuple>
 
-#include "het/het.h"
+#include "het/het_keyvalue.h"
 
 using namespace std::string_view_literals;
 using namespace std::string_literals;
 
-static void het_value_single_ctor(benchmark::State& state) {
+static void het_keyvalue_single_ctor(benchmark::State& state) {
   // Code inside this loop is measured repeatedly
   for (auto _ : state) {
-    het::hvalue hv(1);
+    het::hkeyvalue hkv(1);
     // Make sure the variable is not optimized away by compiler
-    benchmark::DoNotOptimize(hv);
+    benchmark::DoNotOptimize(hkv);
   }
 }
 // Register the function as a benchmark
 BENCHMARK(het_keyvalue_single_ctor);
 
-static void tuple_value_single_ctor(benchmark::State& state) {
+static void tuple_keyvalue_single_ctor(benchmark::State& state) {
   // Code inside this loop is measured repeatedly
   for (auto _ : state) {
     std::tuple<int> v = std::make_tuple(1);
@@ -33,7 +33,7 @@ static void tuple_value_single_ctor(benchmark::State& state) {
 // Register the function as a benchmark
 BENCHMARK(tuple_keyvalue_single_ctor);
 
-static void generic_value_single_ctor(benchmark::State& state) {
+static void generic_keyvalue_single_ctor(benchmark::State& state) {
   // Code inside this loop is measured repeatedly
   for (auto _ : state) {
     int i = 1;
@@ -45,18 +45,18 @@ static void generic_value_single_ctor(benchmark::State& state) {
 // Register the function as a benchmark
 BENCHMARK(generic_keyvalue_single_ctor);
 
-static void het_value_ctor(benchmark::State& state) {
+static void het_keyvalue_ctor(benchmark::State& state) {
   // Code inside this loop is measured repeatedly
   for (auto _ : state) {
-    het::hvalue hv(1, 1.2f, 3., 'c', "stringview"sv, "string"s);
+    het::hkeyvalue hkv(1, 1.2f, 3., 'c', "stringview"sv, "string"s);
     // Make sure the variable is not optimized away by compiler
-    benchmark::DoNotOptimize(hv);
+    benchmark::DoNotOptimize(hkv);
   }
 }
 // Register the function as a benchmark
 BENCHMARK(het_keyvalue_ctor);
 
-static void tuple_value_ctor(benchmark::State& state) {
+static void tuple_keyvalue_ctor(benchmark::State& state) {
   // Code inside this loop is measured repeatedly
   for (auto _ : state) {
     std::tuple<int, float, double, char, std::string_view, std::string> values =
@@ -68,7 +68,7 @@ static void tuple_value_ctor(benchmark::State& state) {
 // Register the function as a benchmark
 BENCHMARK(tuple_keyvalue_ctor);
 
-static void generic_value_ctor(benchmark::State& state) {
+static void generic_keyvalue_ctor(benchmark::State& state) {
   // Code inside this loop is measured repeatedly
   for (auto _ : state) {
     int i = 1;
@@ -90,24 +90,24 @@ static void generic_value_ctor(benchmark::State& state) {
 // Register the function as a benchmark
 BENCHMARK(generic_keyvalue_ctor);
 
-static void het_value_access(benchmark::State& state) {
+static void het_keyvalue_access(benchmark::State& state) {
   // Code inside this loop is measured repeatedly
-  het::hvalue hv(1, 1.2f, 3., 'c', "stringview"sv, "string"s);
+  het::hkeyvalue hkv(1, 1.2f, 3., 'c', "stringview"sv, "string"s);
   for (auto _ : state) {
-    auto i = het::get<int>(hv);
-    auto f = het::get<float>(hv);
-    auto d = het::get<double>(hv);
-    auto c = het::get<char>(hv);
-    auto sv = het::get<std::string_view>(hv);
-    auto s = het::get<std::string>(hv);
+    auto i = het::get<int>(hkv);
+    auto f = het::get<float>(hkv);
+    auto d = het::get<double>(hkv);
+    auto c = het::get<char>(hkv);
+    auto sv = het::get<std::string_view>(hkv);
+    auto s = het::get<std::string>(hkv);
     // Make sure the variable is not optimized away by compiler
-    benchmark::DoNotOptimize(hv);
+    benchmark::DoNotOptimize(hkv);
   }
 }
 // Register the function as a benchmark
 BENCHMARK(het_keyvalue_access);
 
-static void tuple_value_access(benchmark::State& state) {
+static void tuple_keyvalue_access(benchmark::State& state) {
   std::tuple<int, float, double, char, std::string_view, std::string> values =
       std::make_tuple(1, 1.2f, 3., 'c', "stringview"sv, "string"s);
   // Code inside this loop is measured repeatedly
@@ -130,7 +130,7 @@ static void tuple_value_access(benchmark::State& state) {
 // Register the function as a benchmark
 BENCHMARK(tuple_keyvalue_access);
 
-static void generic_value_access(benchmark::State& state) {
+static void generic_keyvalue_access(benchmark::State& state) {
   // Code inside this loop is measured repeatedly
   int i = 1;
   float f = 1.2f;
@@ -157,11 +157,11 @@ static void generic_value_access(benchmark::State& state) {
 // Register the function as a benchmark
 BENCHMARK(generic_keyvalue_access);
 
-static void het_value_single_access(benchmark::State& state) {
+static void het_keyvalue_single_access(benchmark::State& state) {
   // Code inside this loop is measured repeatedly
-  het::hvalue hv(1);
+  het::hkeyvalue hkv(1);
   for (auto _ : state) {
-    auto i = het::get<int>(hv);
+    auto i = het::get<int>(hkv);
     // Make sure the variable is not optimized away by compiler
     benchmark::DoNotOptimize(i);
   }
@@ -169,7 +169,7 @@ static void het_value_single_access(benchmark::State& state) {
 // Register the function as a benchmark
 BENCHMARK(het_keyvalue_single_access);
 
-static void tuple_value_single_access(benchmark::State& state) {
+static void tuple_keyvalue_single_access(benchmark::State& state) {
   // Code inside this loop is measured repeatedly
   std::tuple<int> v = std::make_tuple(1);
   for (auto _ : state) {
@@ -181,7 +181,7 @@ static void tuple_value_single_access(benchmark::State& state) {
 // Register the function as a benchmark
 BENCHMARK(tuple_keyvalue_single_access);
 
-static void generic_value_single_access(benchmark::State& state) {
+static void generic_keyvalue_single_access(benchmark::State& state) {
   // Code inside this loop is measured repeatedly
   int i = 1;
   for (auto _ : state) {

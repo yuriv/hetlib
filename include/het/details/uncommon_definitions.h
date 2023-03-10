@@ -13,6 +13,4 @@
 
 #include <iostream>
 
-#define HET_UNUSED(x) ((void)x)
-
 #endif // HETLIB_UNCOMMON_DEFINITIONS_H

@@ -7,9 +7,9 @@ include_directories(
 )
 
 add_executable(het_tests
-        src/hetero_container.cpp
         src/hetero_value.cpp
-        #src/hetero_copy_test.cpp
+        src/hetero_keyvalue.cpp
+        src/hetero_container.cpp
         )
 
 target_link_libraries(het_tests
@@ -20,6 +20,7 @@ add_test(test het_tests)
 
 add_executable(het_bench
         src/hetero_value_bench.cpp
+        src/hetero_keyvalue_bench.cpp
         src/hetero_container_bench.cpp
         )
 

@@ -3,10 +3,9 @@
 //
 
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
-
 #include <doctest.h>
 
-#include "het/het.h"
+#include "het/het_value.h"
 
 #include "include/hetero_test.h"
 

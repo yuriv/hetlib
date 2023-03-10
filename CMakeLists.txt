@@ -55,7 +55,7 @@ set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fPIC -O0 -Wall -Wextra -Wpe
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -fPIC -Wall -Wextra -Wpedantic -O2 -DNDEBUG")
 set(CMAKE_CONFIGURATION_TYPES "Debug;Release" CACHE STRING "" FORCE)
 set(SOURCE_FILES
-    include/uncommon_definitions.h
+        include/het/details/uncommon_definitions.h
     include/het/het.h)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")

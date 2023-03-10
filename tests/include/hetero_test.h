@@ -5,6 +5,8 @@
 #ifndef HETLIB_HETERO_TEST_H
 #define HETLIB_HETERO_TEST_H
 
+#include "het/het_container.h"
+
 template <typename T> struct nvo {
   void print(std::ostream& os) const { os << _value << "\n"; }
   T _value;
