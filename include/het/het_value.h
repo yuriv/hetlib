@@ -180,6 +180,13 @@ public:
     };
   }
 
+  template <typename... Ts> auto to_tuple() const -> std::tuple<Ts...> {
+    if(!(contains<Ts>() && ...)) {
+      throw std::out_of_range(AT "try to access unbounded value");
+    }
+    return {value<Ts>() ...};
+  }
+
 private:
   template <typename T, typename... Fs> constexpr bool match_single(Fs &&... fs) {
     auto f = stg::util::fn_select_applicable<T>::check(std::forward<Fs>(fs)...);
@@ -281,7 +288,7 @@ constexpr T const && get(het::hetero_value<C> const && hv) requires (!std::is_vo
 }
 
 template <typename T, template <typename...> typename C>
-constexpr T const * get_if(het::hetero_value<C> const & hv) noexcept {
+constexpr T const * get_if(het::hetero_value<C> const & hv) noexcept requires (!std::is_void_v<T>) {
   static_assert(!std::is_void_v<T>, "T must not be void");
   return hv.template contains<T>() ? std::addressof(get<T>(hv)) : nullptr;
 }
@@ -308,10 +315,7 @@ auto to_tuple(hetero_value<C> & hv) -> std::tuple<Ts...> {
 
 template <typename... Ts, template <typename...> class C>
 auto to_tuple(hetero_value<C> && hv) -> std::tuple<Ts...> {
-  if(!(hv.template contains<Ts>() && ...)) {
-    throw std::out_of_range("try to access unbounded value");
-  }
-  return {hv.template value<Ts>() ...};
+  return hv.template to_tuple<Ts...>();
 }
 
 using hvalue = hetero_value<std::unordered_map>;

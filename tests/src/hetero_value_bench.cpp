@@ -20,7 +20,7 @@ static void het_value_single_ctor(benchmark::State& state) {
   }
 }
 // Register the function as a benchmark
-BENCHMARK(het_keyvalue_single_ctor);
+BENCHMARK(het_value_single_ctor);
 
 static void tuple_value_single_ctor(benchmark::State& state) {
   // Code inside this loop is measured repeatedly
@@ -31,7 +31,7 @@ static void tuple_value_single_ctor(benchmark::State& state) {
   }
 }
 // Register the function as a benchmark
-BENCHMARK(tuple_keyvalue_single_ctor);
+BENCHMARK(tuple_value_single_ctor);
 
 static void generic_value_single_ctor(benchmark::State& state) {
   // Code inside this loop is measured repeatedly
@@ -43,7 +43,7 @@ static void generic_value_single_ctor(benchmark::State& state) {
   }
 }
 // Register the function as a benchmark
-BENCHMARK(generic_keyvalue_single_ctor);
+BENCHMARK(generic_value_single_ctor);
 
 static void het_value_ctor(benchmark::State& state) {
   // Code inside this loop is measured repeatedly
@@ -54,7 +54,7 @@ static void het_value_ctor(benchmark::State& state) {
   }
 }
 // Register the function as a benchmark
-BENCHMARK(het_keyvalue_ctor);
+BENCHMARK(het_value_ctor);
 
 static void tuple_value_ctor(benchmark::State& state) {
   // Code inside this loop is measured repeatedly
@@ -66,7 +66,7 @@ static void tuple_value_ctor(benchmark::State& state) {
   }
 }
 // Register the function as a benchmark
-BENCHMARK(tuple_keyvalue_ctor);
+BENCHMARK(tuple_value_ctor);
 
 static void generic_value_ctor(benchmark::State& state) {
   // Code inside this loop is measured repeatedly
@@ -88,7 +88,7 @@ static void generic_value_ctor(benchmark::State& state) {
   }
 }
 // Register the function as a benchmark
-BENCHMARK(generic_keyvalue_ctor);
+BENCHMARK(generic_value_ctor);
 
 static void het_value_access(benchmark::State& state) {
   // Code inside this loop is measured repeatedly
@@ -105,7 +105,7 @@ static void het_value_access(benchmark::State& state) {
   }
 }
 // Register the function as a benchmark
-BENCHMARK(het_keyvalue_access);
+BENCHMARK(het_value_access);
 
 static void tuple_value_access(benchmark::State& state) {
   std::tuple<int, float, double, char, std::string_view, std::string> values =
@@ -128,7 +128,7 @@ static void tuple_value_access(benchmark::State& state) {
   }
 }
 // Register the function as a benchmark
-BENCHMARK(tuple_keyvalue_access);
+BENCHMARK(tuple_value_access);
 
 static void generic_value_access(benchmark::State& state) {
   // Code inside this loop is measured repeatedly
@@ -155,7 +155,7 @@ static void generic_value_access(benchmark::State& state) {
   }
 }
 // Register the function as a benchmark
-BENCHMARK(generic_keyvalue_access);
+BENCHMARK(generic_value_access);
 
 static void het_value_single_access(benchmark::State& state) {
   // Code inside this loop is measured repeatedly
@@ -167,7 +167,7 @@ static void het_value_single_access(benchmark::State& state) {
   }
 }
 // Register the function as a benchmark
-BENCHMARK(het_keyvalue_single_access);
+BENCHMARK(het_value_single_access);
 
 static void tuple_value_single_access(benchmark::State& state) {
   // Code inside this loop is measured repeatedly
@@ -179,7 +179,7 @@ static void tuple_value_single_access(benchmark::State& state) {
   }
 }
 // Register the function as a benchmark
-BENCHMARK(tuple_keyvalue_single_access);
+BENCHMARK(tuple_value_single_access);
 
 static void generic_value_single_access(benchmark::State& state) {
   // Code inside this loop is measured repeatedly
@@ -191,8 +191,6 @@ static void generic_value_single_access(benchmark::State& state) {
   }
 }
 // Register the function as a benchmark
-BENCHMARK(generic_keyvalue_single_access);
+BENCHMARK(generic_value_single_access);
 
 BENCHMARK_MAIN();
-
-

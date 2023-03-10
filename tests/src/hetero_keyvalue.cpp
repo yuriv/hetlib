@@ -5,6 +5,7 @@
 #include <doctest.h>
 #include <sstream>
 #include <cstring>
+#include <memory>
 
 #include "het/het_keyvalue.h"
 
@@ -37,11 +38,9 @@ TEST_CASE("heterogeneous key-value one-by-one ctor test") {
 }
 
 TEST_CASE("heterogeneous key-value unbounded value access") {
-//  het::hkeyvalue hkv;
-//  auto t1 = het::to_tuple<int, double>(1, hkv);
-//  auto t2 = het::to_vector<int>("key1"sv, hkv);
-//  CHECK_THROWS_AS(het::to_tuple<int, double>(1, hkv), std::out_of_range); // {int(1)->int+, int(1)->double+}
-//  CHECK_THROWS_AS(het::to_vector<int>("key1"sv, hkv), std::out_of_range); // {string_view("key")->int+}
+  het::hkeyvalue hkv;
+  CHECK_THROWS_AS((het::to_tuple<int, double>(hkv, 1)), std::out_of_range); // {int(1)->int+, int(1)->double+}
+  CHECK_THROWS_AS(het::to_vector<int>(hkv, "key1"sv), std::out_of_range); // {string_view("key")->int+}
 }
 
 TEST_CASE("heterogeneous key-value to tuple transform") {
@@ -72,8 +71,8 @@ TEST_CASE("heterogeneous key-value to vector transform") {
 }
 
 TEST_CASE("heterogeneous key-value move ctor test") {
-//  het::hkeyvalue hkv(std::make_pair(1, std::make_unique<int>(123)));
-//  CHECK(*hkv.template value<std::unique_ptr<int>>(1, hkv).get() == *std::make_unique<int>(123).get());
+  het::hkeyvalue hkv(std::make_pair(1, std::make_unique<int>(123)));
+  CHECK(*hkv.template value<std::unique_ptr<int>>(1).get() == *std::make_unique<int>(123).get());
 }
 
 TEST_CASE("heterogeneous key-value bulk ctor test") {
@@ -93,26 +92,22 @@ TEST_CASE("heterogeneous value add/modify/erase/replace test") {
   hkv.add_values(std::make_pair(1, 1), std::make_pair(2l, 2l), std::make_pair(std::string_view("string"), 3),
                  std::make_pair(3.f, 4.f), std::make_pair('c', 5), std::make_pair(4., 6.));
 
-//  auto sz = sizeof(hkv);
-//  CHECK_EQ(hkv.value<int>(), 1);
-//
-//  hkv.erase_values<int>();
-//  CHECK_EQ(hv.arity(), 5);
-//
-//  hkv.add_values(42);
-//  CHECK_EQ(hv.arity(), 6);
-//  CHECK_EQ(hkv.value<int>(), 42);
-//
-//  hkv.modify_values("new string"sv, 769);
-//  CHECK_EQ(hv.arity(), 6);
-//  CHECK_EQ(hkv.value<std::string_view>(), "new string"sv);
-//  CHECK_EQ(hkv.value<int>(), 769);
-//
-//  hkv.add_values("string"sv);
-//  CHECK_EQ(hv.arity(), 6);
-//  CHECK_EQ(hkv.value<std::string_view>(), "string"sv);
-//
-//  CHECK_EQ(sz, sizeof(hkv));
+  auto sz = sizeof(hkv);
+  CHECK(hkv.size() == 6);
+  CHECK_EQ(hkv.value<int>(1), 1);
+
+  CHECK(hkv.erase_value<int>('c'));
+  CHECK(hkv.size() == 5);
+
+  hkv.add_values(std::make_pair(42, 12.f));
+  CHECK_EQ(hkv.size(), 6);
+  CHECK_EQ(hkv.value<float>(42), 12.f);
+
+  hkv.modify_values(std::make_pair("string"sv, 769));
+  CHECK_EQ(hkv.size(), 6);
+  CHECK_EQ(hkv.value<int>("string"sv), 769);
+
+  CHECK_EQ(sz, sizeof(hkv));
 }
 
 TEST_CASE("heterogeneous value visitor test") {

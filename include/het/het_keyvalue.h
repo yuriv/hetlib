@@ -70,10 +70,14 @@ public:
     (add_value(std::forward<Ts>(values)), ...);
   }
 
+  template <typename T, typename K> [[nodiscard]] constexpr bool contains() const {
+    return hetero_key_value::values<K, T>().contains(this);
+  }
+
   template <typename T, typename K> [[nodiscard]] bool contains(K && key) const {
     auto & vs = hetero_key_value::values<K, T>();
-    if(auto it = vs.find(this); it != std::end(vs)) {
-      return it->second.find(std::forward<K>(key)) != std::end(it->second);
+    if(auto it = vs.find(this); it != std::cend(vs)) {
+      return it->second.contains(std::forward<K>(key));
     }
     return false;
   }
@@ -138,13 +142,12 @@ public:
     (add_value(std::forward<Ts>(values)), ...);
   }
 
-  template <typename T, typename K> void erase_value(K && key) {
-    if(contains<T, K>()) {
-      auto vs = hetero_key_value::values<K, T>();
-      if(auto c = vs.find(this); c != std::end(vs)) {
-        c->erase(std::forward<K>(key));
-      }
+  template <typename T, typename K> bool erase_value(K && key) {
+    auto & vs = hetero_key_value::values<K, T>();
+    if(auto c = vs.find(this); c != std::end(vs)) {
+      return c->second.erase(std::forward<K>(key));
     }
+    return false;
   }
 
   void clear() {
@@ -156,7 +159,7 @@ public:
   [[nodiscard]] std::size_t size() const {
     std::size_t sz = 0;
     for (auto && size_function : _size_functions) {
-      sz += size_function();
+      sz += size_function(*this);
     }
     return sz;
   }
@@ -177,23 +180,23 @@ public:
   }
 
   template <typename... Ts, typename K> requires (sizeof...(Ts) > 0)
-  auto to_tuple(K && key) -> std::tuple<Ts...> {
+  auto to_tuple(K && key) const -> std::tuple<Ts...> {
     if(!(contains<Ts>(std::forward<K>(key)) && ...)) {
-      throw std::out_of_range("try to access unbounded value");
+      throw std::out_of_range(AT "try to access unbounded value");
     }
     return {value<Ts>(std::forward<K>(key)) ...};
   }
 
   template <typename T, typename... Ks> requires (sizeof...(Ks) > 0)
-  auto to_vector(Ks &&... keys) -> std::vector<T> {
+  auto to_vector(Ks &&... keys) const -> std::vector<T> {
     if(!(contains<T>(std::forward<Ks>(keys)) && ...)) {
-      throw std::out_of_range("try to access unbounded value");
+      throw std::out_of_range(AT "try to access unbounded value");
     }
     return {value<T>(std::forward<Ks>(keys)) ...};
   }
 
 private:
-  template <typename K, typename T, typename... Fs> constexpr bool match_single(Fs &&... fs) {
+  template <typename K, typename T, typename... Fs> constexpr bool match_single(Fs &&... fs) const {
     auto f = stg::util::fn_select_applicable<K, T>::check(std::forward<Fs>(fs)...);
     auto & vs = hetero_key_value::values<K, T>();
     if(auto it = vs.find(this); it != std::end(vs)) {

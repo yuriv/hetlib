@@ -32,6 +32,7 @@ concept is_suitable_container = requires(C<K, V> c) {
   { std::begin(c) } -> std::convertible_to<typename C<K, V>::iterator>;
   { std::end(c) } -> std::convertible_to<typename C<K, V>::iterator>;
   { c.find(std::declval<K>()) } -> std::convertible_to<typename C<K, V>::iterator>;
+  { c.contains(std::declval<K>()) } -> std::convertible_to<bool>;
   { c.insert_or_assign(std::declval<K>(), std::declval<V>()) } -> std::convertible_to<std::pair<typename C<K, V>::iterator, bool>>;
 };
 
