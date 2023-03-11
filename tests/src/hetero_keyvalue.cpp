@@ -23,6 +23,9 @@ TEST_CASE("heterogeneous key-value add-or-default ctor test") {
 
 TEST_CASE("heterogeneous key-value one-by-one ctor test") {
   het::hkeyvalue hkv;
+
+  CHECK(hkv.empty());
+
   hkv.add_values(std::make_pair(1, 1));
   hkv.add_values(std::make_pair(2l, 2));
   hkv.add_values(std::make_pair(std::string_view("string"), 3));
@@ -89,6 +92,7 @@ TEST_CASE("heterogeneous key-value bulk ctor test") {
 
 TEST_CASE("heterogeneous value add/modify/erase/replace test") {
   het::hkeyvalue hkv;
+
   hkv.add_values(std::make_pair(1, 1), std::make_pair(2l, 2l), std::make_pair(std::string_view("string"), 3),
                  std::make_pair(3.f, 4.f), std::make_pair('c', 5), std::make_pair(4., 6.));
 

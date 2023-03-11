@@ -156,6 +156,10 @@ public:
     }
   }
 
+  [[nodiscard]] bool empty() const {
+    return size() == 0;
+  }
+
   [[nodiscard]] std::size_t size() const {
     std::size_t sz = 0;
     for (auto && size_function : _size_functions) {
