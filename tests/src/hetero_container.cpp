@@ -72,23 +72,34 @@ TEST_CASE("heterogeneous vector unbounded value access") {
   CHECK_THROWS_AS(het::to_tuple<int>(hc), std::out_of_range);
 }
 
+#include <string.h>
+
 TEST_CASE("heterogeneous vector to tuple transform") {
   het::hvector hc;
   CHECK(hc.empty());
+
+  std::string sref("soo");
 
   hc.push_back('a');
   hc.push_back(1);
   hc.push_back(2.0);
   hc.push_back(3);
   hc.push_back(std::string{"foo"});
+  hc.push_back(std::ref(sref));
+  hc.push_back(std::cref(sref));
+  hc.push_back((char*)"vsd");
 
-  auto [i1, i2, d, s, c] = het::to_tuple<int, int, double, std::string, char>(hc);
+  auto[i1, i2, d, s, c, sr, csr, cs] = het::to_tuple<int, int, double, std::string, char,
+      std::reference_wrapper<std::string>, std::reference_wrapper<std::string const>, char *>(hc);
 
   CHECK(i1 == 1);
   CHECK(i2 == 3);
   CHECK(d == 2.0);
   CHECK(s == "foo"s);
   CHECK(c == 'a');
+  CHECK(sr.get() == "soo");
+  CHECK(csr.get() == "soo");
+  CHECK_EQ(strcmp(cs, "vsd"), 0);
 }
 
 TEST_CASE("heterogeneous vector move ctor test") {

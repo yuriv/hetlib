@@ -13,6 +13,8 @@
 
 namespace het {
 
+using namespace metaf::util;
+
 template <template <typename, typename, typename...> class C>
 class hetero_value {
   template <typename T> static C<hetero_value const *, T> _values;
@@ -180,11 +182,11 @@ public:
     };
   }
 
-  template <typename... Ts> auto to_tuple() const -> std::tuple<Ts...> {
-    if(!(contains<Ts>() && ...)) {
+  template <typename... Ts> auto to_tuple() -> std::tuple<safe_ref<Ts>...> {
+    if(!(contains<safe_ref<Ts>>() && ...)) {
       throw std::out_of_range(AT "try to access unbounded value");
     }
-    return {value<Ts>() ...};
+    return {value<safe_ref<Ts>>() ...};
   }
 
 private:
@@ -304,17 +306,17 @@ constexpr T * get_if(het::hetero_value<C> && hv) noexcept requires (!std::is_voi
 }
 
 template <typename... Ts, template <typename...> class C>
-auto to_tuple(hetero_value<C> const & hv) -> std::tuple<Ts...> {
+auto to_tuple(hetero_value<C> const & hv) -> std::tuple<safe_ref<Ts>...> {
   return to_tuple<Ts...>(std::move(hv));
 }
 
 template <typename... Ts, template <typename...> class C>
-auto to_tuple(hetero_value<C> & hv) -> std::tuple<Ts...> {
+auto to_tuple(hetero_value<C> & hv) -> std::tuple<safe_ref<Ts>...> {
   return to_tuple<Ts...>(std::move(hv));
 }
 
 template <typename... Ts, template <typename...> class C>
-auto to_tuple(hetero_value<C> && hv) -> std::tuple<Ts...> {
+auto to_tuple(hetero_value<C> && hv) -> std::tuple<safe_ref<Ts>...> {
   return hv.template to_tuple<Ts...>();
 }
 

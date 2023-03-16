@@ -53,11 +53,18 @@ TEST_CASE("heterogeneous key-value to tuple transform") {
       std::make_pair(2.0, 3),
       std::make_pair("foo"s, 4),
       std::make_pair(1, "stringview"sv));
+  std::string sref{"soo"};
+  hkv.add_values(std::pair<int, std::reference_wrapper<std::string>>(1, std::ref(sref)),
+                 std::pair<int, std::reference_wrapper<std::string const>>(1, std::ref(sref)), std::make_pair(1, (char*)"vsd"));
 
-  auto [i1, sv] = het::to_tuple<int, std::string_view>(hkv, 1);
+  auto [i1, sv, sr, csr, cs] = het::to_tuple<int, std::string_view,
+      std::reference_wrapper<std::string>, std::reference_wrapper<std::string const>, char *>(hkv, 1);
 
   CHECK(i1 == 2);
   CHECK(sv == "stringview"sv);
+  CHECK(sr.get() == "soo");
+  CHECK(csr.get() == "soo");
+  CHECK_EQ(strcmp(cs, "vsd"), 0);
 }
 
 TEST_CASE("heterogeneous key-value to vector transform") {

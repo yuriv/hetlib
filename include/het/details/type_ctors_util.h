@@ -36,6 +36,15 @@
 
 namespace metaf::util {
 
+template <typename T> consteval auto type_or_ref() noexcept ->
+std::conditional_t<std::is_lvalue_reference_v<T>,
+    std::conditional_t<std::is_const_v<std::remove_reference_t<T>>,
+        std::reference_wrapper<std::remove_cvref_t<const T>>,
+        std::reference_wrapper<std::remove_cvref_t<T>>
+    >, T> {return{};}
+
+template <typename T> using safe_ref = decltype(type_or_ref<T>());
+
 /**
  * \brief Currying F over argument Args...
  * 

@@ -16,6 +16,22 @@
 
 namespace het {
 
+using namespace metaf::util;
+
+namespace {
+
+template<typename T> struct type_offset {
+  static std::size_t offset;
+
+  explicit type_offset() noexcept { type_offset::offset++; }
+
+  static constexpr void reset() noexcept { type_offset::offset = 0; }
+};
+
+template<typename T> std::size_t type_offset<T>::offset = 0;
+
+} // namespace anonymous
+
 template <template <typename...> class InnerC, template <typename, typename, typename...> class OuterC> requires is_assoc_container<OuterC>
 class hetero_container {
   template<typename T> static OuterC<hetero_container const *, InnerC<T>> _items;
@@ -45,11 +61,11 @@ public:
   }
 
   template <typename... Ts> explicit hetero_container(Ts const &... ts) {
-    (..., push_back(ts));
+    (push_back(ts), ...);
   }
 
   template <typename... Ts> explicit hetero_container(Ts &&... ts) {
-    (..., push_back(std::move(ts)));
+    (push_back(std::move(ts)), ...);
   }
 
   virtual ~hetero_container() {
@@ -295,6 +311,14 @@ public:
     return [this]<typename F, typename... Fs>(F && f, Fs &&... fs) -> bool {
         return match_single<T>(f, fs...) && (... && match_single<Ts>(f, fs...));
     };
+  }
+
+  template <typename... Ts> requires (sizeof...(Ts) > 0) auto to_tuple() const -> std::tuple<safe_ref<Ts>...> {
+    if(!(contains<safe_ref<Ts>>() && ...)) {
+      throw std::out_of_range("try to access unbounded value");
+    }
+    (type_offset<safe_ref<Ts>>::reset(), ...);
+    return {fraction<safe_ref<Ts>>().at(type_offset<safe_ref<Ts>>().offset - 1) ...};
   }
 
   // Find/Query accessors
@@ -600,38 +624,19 @@ std::pair<bool, typename hetero_container<InnerC, OuterC>::template inner_iterat
   return std::pair{false, iter->second.end()};
 }
 
-namespace {
-
-template<typename T>
-struct type_offset {
-  static std::size_t offset;
-
-  explicit type_offset(T &&) noexcept { type_offset::offset++; }
-
-  static constexpr void reset() { type_offset::offset = 0; }
-};
-
-template<typename T> std::size_t type_offset<T>::offset = 0;
-
-} // namespace anonymous
-
 template <typename... Ts, template <typename...> class InnerC, template <typename, typename, typename...> class OuterC>
-auto to_tuple(hetero_container<InnerC, OuterC> const & hv) -> std::tuple<Ts...> {
+auto to_tuple(hetero_container<InnerC, OuterC> const & hv) -> std::tuple<safe_ref<Ts>...> {
   return to_tuple<Ts...>(std::move(hv));
 }
 
 template <typename... Ts, template <typename...> class InnerC, template <typename, typename, typename...> class OuterC>
-auto to_tuple(hetero_container<InnerC, OuterC> & hv) -> std::tuple<Ts...> {
+auto to_tuple(hetero_container<InnerC, OuterC> & hv) -> std::tuple<safe_ref<Ts>...> {
   return to_tuple<Ts...>(std::move(hv));
 }
 
 template <typename... Ts, template <typename...> class InnerC, template <typename, typename, typename...> class OuterC>
-auto to_tuple(hetero_container<InnerC, OuterC> && hv) -> std::tuple<Ts...> {
-  if(!(hv.template contains<Ts>() && ...)) {
-    throw std::out_of_range("try to access unbounded value");
-  }
-  (type_offset<Ts>::reset(), ...);
-  return {hv.template fraction<Ts>().at(type_offset(Ts{}).offset - 1) ...};
+auto to_tuple(hetero_container<InnerC, OuterC> && hv) -> std::tuple<safe_ref<Ts>...> {
+  return hv.template to_tuple<Ts...>();
 }
 
 template <template <typename...> class C> using hash_key_container = hetero_container<C, std::unordered_map>;

@@ -43,13 +43,19 @@ TEST_CASE("heterogeneous value unbounded value access") {
 
 TEST_CASE("heterogeneous value to tuple transform") {
   het::hvalue hv('a', 1, 2.0, "foo"s);
+  std::string sref{"soo"};
+  hv.add_values(std::ref(sref), std::cref(sref), (char*)"vsd");
 
-  auto [i1, d, s, c] = het::to_tuple<int, double, std::string, char>(hv);
+  auto [i1, d, s, c, sr, csr, cs] = het::to_tuple<int, double, std::string, char,
+      std::reference_wrapper<std::string>, std::reference_wrapper<std::string const>, char *>(hv);
 
   CHECK(i1 == 1);
   CHECK(d == 2.0);
   CHECK(s == "foo"s);
   CHECK(c == 'a');
+  CHECK(sr.get() == "soo");
+  CHECK(csr.get() == "soo");
+  CHECK_EQ(strcmp(cs, "vsd"), 0);
 }
 
 TEST_CASE("heterogeneous value move ctor test") {
