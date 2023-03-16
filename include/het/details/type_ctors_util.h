@@ -34,6 +34,8 @@
 
 #include <concepts>
 
+#include "het/het_container.h"
+
 namespace metaf::util {
 
 template <typename T> consteval auto type_or_ref() noexcept ->
@@ -427,15 +429,49 @@ namespace fn {
 /**
  * \brief Function details description
  */
+/**
+ * \brief Function details description
+ */
+template<bool IsMethod, typename Sign, typename R, typename... Args>
+struct traits_base {};
+
 template<typename Sign, typename R, typename... Args>
-struct traits_base {
+struct traits_base<false, Sign, R, Args...> {
   using signature = Sign;
   using cpp11_signature = R(Args...);
-  using is_method = std::is_member_function_pointer<signature>;
+  using is_method = std::bool_constant<false>;
   using args = std::tuple<Args...>;
-  using arg_types = std::tuple<std::decay_t<Args>...>;
+  using arg_types = std::tuple<std::decay_t<std::remove_reference_t<Args>>...>;
   using arity = std::integral_constant<unsigned, sizeof...(Args)>;
   using result = R;
+  template <typename F, typename Tuple, std::size_t... Is>
+  static auto apply_by_index(F && f, Tuple && args, std::index_sequence<Is...> &&) {
+    return std::invoke(std::forward<F>(f), std::get<Is>(args)...);
+  }
+  template <typename F> static auto apply(F && f, het::hvector && args) {
+    static_assert(std::invocable<F, Args...>);
+    return apply_by_index(std::forward<F>(f), het::to_tuple<Args...>(std::move(args)), std::index_sequence_for<Args...>{});
+  }
+};
+
+template<typename C, typename Sign, typename R, typename... Args>
+struct traits_base<true, C, Sign, R, Args...> {
+  using signature = Sign;
+  using cpp11_signature = R(Args...);
+  using is_method = std::bool_constant<true>;
+  using class_type = C;
+  using args = std::tuple<Args...>;
+  using arg_types = std::tuple<std::decay_t<std::remove_reference_t<Args>>...>;
+  using arity = std::integral_constant<unsigned, sizeof...(Args)>;
+  using result = R;
+  template <typename F, typename Tuple, std::size_t... Is>
+  static auto apply_by_index(F && f, C * c, Tuple && args, std::index_sequence<Is...> &&) {
+    return std::invoke(std::forward<F>(f), c, std::get<Is>(args)...);
+  }
+  template <typename F> static auto apply(F && f, C * c, het::hvector && args) {
+    static_assert(std::invocable<F, C *, Args...>);
+    return apply_by_index(std::forward<F>(f), c, het::to_tuple<Args...>(std::move(args)), std::index_sequence_for<Args...>{});
+  }
 };
 
 /**
@@ -445,29 +481,29 @@ template<typename T>
 struct traits : traits<decltype(&T::operator())> {};
 
 template<typename R, typename... Args>
-struct traits<R(*)(Args...)> : traits_base<R(*)(Args...), R, Args...> {};
+struct traits<R(*)(Args...)> : traits_base<false, R(*)(Args...), R, Args...> {};
 template<typename R, typename... Args>
-struct traits<R(* const)(Args...)> : traits_base<R(* const)(Args...), R, Args...> {};
+struct traits<R(* const)(Args...)> : traits_base<false, R(* const)(Args...), R, Args...> {};
 template<typename R, typename... Args>
-struct traits<R(*)(Args...) noexcept> : traits_base<R(*)(Args...), R, Args...> {};
+struct traits<R(*)(Args...) noexcept> : traits_base<false, R(*)(Args...), R, Args...> {};
 template<typename R, typename... Args>
-struct traits<R(* const)(Args...) noexcept> : traits_base<R(* const)(Args...), R, Args...> {};
+struct traits<R(* const)(Args...) noexcept> : traits_base<false, R(* const)(Args...), R, Args...> {};
 template<typename R, typename C, typename... Args>
-struct traits<R(C::*)(Args...)> : traits_base<R(C::*)(Args...), R, Args...> {};
+struct traits<R(C::*)(Args...)> : traits_base<true, C, R(C::*)(Args...), R, Args...> {};
 template<typename R, typename C, typename... Args>
-struct traits<R(C::* const)(Args...)> : traits_base<R(C::* const)(Args...), R, Args...> {};
+struct traits<R(C::* const)(Args...)> : traits_base<true, C, R(C::* const)(Args...), R, Args...> {};
 template<typename R, typename C, typename... Args>
-struct traits<R(C::*)(Args...) const> : traits_base<R(C::*)(Args...) const, R, Args...> {};
+struct traits<R(C::*)(Args...) const> : traits_base<true, C, R(C::*)(Args...) const, R, Args...> {};
 template<typename R, typename C, typename... Args>
-struct traits<R(C::* const)(Args...) const> : traits_base<R(C::* const)(Args...) const, R, Args...> {};
+struct traits<R(C::* const)(Args...) const> : traits_base<true, C, R(C::* const)(Args...) const, R, Args...> {};
 template<typename R, typename C, typename... Args>
-struct traits<R(C::*)(Args...) noexcept> : traits_base<R(C::*)(Args...), R, Args...> {};
+struct traits<R(C::*)(Args...) noexcept> : traits_base<true, C, R(C::*)(Args...), R, Args...> {};
 template<typename R, typename C, typename... Args>
-struct traits<R(C::* const)(Args...) noexcept> : traits_base<R(C::* const)(Args...), R, Args...> {};
+struct traits<R(C::* const)(Args...) noexcept> : traits_base<true, C, R(C::* const)(Args...), R, Args...> {};
 template<typename R, typename C, typename... Args>
-struct traits<R(C::*)(Args...) const noexcept> : traits_base<R(C::*)(Args...) const, R, Args...> {};
+struct traits<R(C::*)(Args...) const noexcept> : traits_base<true, C, R(C::*)(Args...) const, R, Args...> {};
 template<typename R, typename C, typename... Args>
-struct traits<R(C::* const)(Args...) const noexcept> : traits_base<R(C::* const)(Args...) const, R, Args...> {};
+struct traits<R(C::* const)(Args...) const noexcept> : traits_base<true, C, R(C::* const)(Args...) const, R, Args...> {};
 
 } // namespace fn
 
