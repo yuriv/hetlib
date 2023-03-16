@@ -14,6 +14,8 @@
 #include <functional>
 #include <unordered_map>
 
+#include "details/typesafe.h"
+
 namespace het {
 
 using namespace metaf::util;
