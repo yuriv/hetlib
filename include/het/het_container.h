@@ -315,7 +315,7 @@ public:
     };
   }
 
-  template <typename... Ts> requires (sizeof...(Ts) > 0) auto to_tuple() const -> std::tuple<safe_ref<Ts>...> {
+  template <typename... Ts> auto to_tuple() const -> std::tuple<safe_ref<Ts>...> {
     if(!(contains<safe_ref<Ts>>() && ...)) {
       throw std::out_of_range("try to access unbounded value");
     }
@@ -627,19 +627,16 @@ std::pair<bool, typename hetero_container<InnerC, OuterC>::template inner_iterat
 }
 
 template <typename... Ts, template <typename...> class InnerC, template <typename, typename, typename...> class OuterC>
-  requires (sizeof...(Ts) > 0)
 auto to_tuple(hetero_container<InnerC, OuterC> const & hv) -> std::tuple<safe_ref<Ts>...> {
   return to_tuple<Ts...>(std::move(hv));
 }
 
 template <typename... Ts, template <typename...> class InnerC, template <typename, typename, typename...> class OuterC>
-  requires (sizeof...(Ts) > 0)
 auto to_tuple(hetero_container<InnerC, OuterC> & hv) -> std::tuple<safe_ref<Ts>...> {
   return to_tuple<Ts...>(std::move(hv));
 }
 
 template <typename... Ts, template <typename...> class InnerC, template <typename, typename, typename...> class OuterC>
-  requires (sizeof...(Ts) > 0)
 auto to_tuple(hetero_container<InnerC, OuterC> && hv) -> std::tuple<safe_ref<Ts>...> {
   return hv.template to_tuple<Ts...>();
 }

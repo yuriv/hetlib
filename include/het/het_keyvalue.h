@@ -187,7 +187,7 @@ public:
     };
   }
 
-  template <typename... Ts, typename K> requires (sizeof...(Ts) > 0)
+  template <typename... Ts, typename K>
   auto to_tuple(K && key) const -> std::tuple<safe_ref<Ts>...> {
     if(!(contains<safe_ref<Ts>>(std::forward<K>(key)) && ...)) {
       throw std::out_of_range(AT "try to access unbounded value");
@@ -195,7 +195,7 @@ public:
     return {value<safe_ref<Ts>>(std::forward<K>(key)) ...};
   }
 
-  template <typename T, typename... Ks> requires (sizeof...(Ks) > 0)
+  template <typename T, typename... Ks>
   auto to_vector(Ks &&... keys) const -> std::vector<safe_ref<T>> {
     if(!(contains<safe_ref<T>>(std::forward<Ks>(keys)) && ...)) {
       throw std::out_of_range(AT "try to access unbounded value");
@@ -277,32 +277,32 @@ private:
 template <template <typename, typename, typename...> typename C>
 template <typename K, typename T> C<hetero_key_value<C> const *, C<K, T>> hetero_key_value<C>::_values;
 
-template <typename... Ts, typename K, template <typename...> class C> requires (sizeof...(Ts) > 0)
+template <typename... Ts, typename K, template <typename...> class C>
 auto to_tuple(hetero_key_value<C> const & hkv, K && key) -> std::tuple<safe_ref<Ts>...> {
   return to_tuple<Ts...>(move(hkv), std::forward<K>(key));
 }
 
-template <typename... Ts, typename K, template <typename...> class C> requires (sizeof...(Ts) > 0)
+template <typename... Ts, typename K, template <typename...> class C>
 auto to_tuple(hetero_key_value<C> & hkv, K && key) -> std::tuple<safe_ref<Ts>...> {
   return to_tuple<Ts...>(std::move(hkv), std::forward<K>(key));
 }
 
-template <typename... Ts, typename K, template <typename...> class C> requires (sizeof...(Ts) > 0)
+template <typename... Ts, typename K, template <typename...> class C>
 auto to_tuple(hetero_key_value<C> && hkv, K && key) -> std::tuple<safe_ref<Ts>...> {
   return hkv.template to_tuple<Ts...>(std::forward<K>(key));
 }
 
-template <typename T, template <typename...> class C, typename... Ks> requires (sizeof...(Ks) > 0)
+template <typename T, template <typename...> class C, typename... Ks>
 auto to_vector(hetero_key_value<C> const & hkv, Ks &&... keys) -> std::vector<safe_ref<T>> {
   return to_vector<T>(std::move(hkv), std::forward<Ks>(keys)...);
 }
 
-template <typename T, template <typename...> class C, typename... Ks> requires (sizeof...(Ks) > 0)
+template <typename T, template <typename...> class C, typename... Ks>
 auto to_vector(hetero_key_value<C> & hkv, Ks &&... keys) -> std::vector<safe_ref<T>> {
   return to_vector<T>(std::move(hkv), std::forward<Ks>(keys)...);
 }
 
-template <typename T, template <typename...> class C, typename... Ks> requires (sizeof...(Ks) > 0)
+template <typename T, template <typename...> class C, typename... Ks>
 auto to_vector(hetero_key_value<C> && hkv, Ks &&... keys) -> std::vector<safe_ref<T>> {
   return hkv.template to_vector<T>(std::forward<Ks>(keys)...);
 }
