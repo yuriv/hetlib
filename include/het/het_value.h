@@ -184,7 +184,7 @@ public:
     };
   }
 
-  template <typename... Ts> auto to_tuple() -> std::tuple<safe_ref<Ts>...> {
+  template <typename... Ts> requires (sizeof...(Ts) > 0) auto to_tuple() const -> std::tuple<safe_ref<Ts>...> {
     if(!(contains<safe_ref<Ts>>() && ...)) {
       throw std::out_of_range(AT "try to access unbounded value");
     }
@@ -308,16 +308,19 @@ constexpr T * get_if(het::hetero_value<C> && hv) noexcept requires (!std::is_voi
 }
 
 template <typename... Ts, template <typename...> class C>
+  requires (sizeof...(Ts) > 0)
 auto to_tuple(hetero_value<C> const & hv) -> std::tuple<safe_ref<Ts>...> {
   return to_tuple<Ts...>(std::move(hv));
 }
 
 template <typename... Ts, template <typename...> class C>
+  requires (sizeof...(Ts) > 0)
 auto to_tuple(hetero_value<C> & hv) -> std::tuple<safe_ref<Ts>...> {
   return to_tuple<Ts...>(std::move(hv));
 }
 
 template <typename... Ts, template <typename...> class C>
+  requires (sizeof...(Ts) > 0)
 auto to_tuple(hetero_value<C> && hv) -> std::tuple<safe_ref<Ts>...> {
   return hv.template to_tuple<Ts...>();
 }

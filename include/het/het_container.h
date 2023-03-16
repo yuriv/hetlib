@@ -627,16 +627,19 @@ std::pair<bool, typename hetero_container<InnerC, OuterC>::template inner_iterat
 }
 
 template <typename... Ts, template <typename...> class InnerC, template <typename, typename, typename...> class OuterC>
+  requires (sizeof...(Ts) > 0)
 auto to_tuple(hetero_container<InnerC, OuterC> const & hv) -> std::tuple<safe_ref<Ts>...> {
   return to_tuple<Ts...>(std::move(hv));
 }
 
 template <typename... Ts, template <typename...> class InnerC, template <typename, typename, typename...> class OuterC>
+  requires (sizeof...(Ts) > 0)
 auto to_tuple(hetero_container<InnerC, OuterC> & hv) -> std::tuple<safe_ref<Ts>...> {
   return to_tuple<Ts...>(std::move(hv));
 }
 
 template <typename... Ts, template <typename...> class InnerC, template <typename, typename, typename...> class OuterC>
+  requires (sizeof...(Ts) > 0)
 auto to_tuple(hetero_container<InnerC, OuterC> && hv) -> std::tuple<safe_ref<Ts>...> {
   return hv.template to_tuple<Ts...>();
 }
