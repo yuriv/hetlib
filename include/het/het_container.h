@@ -14,9 +14,14 @@
 #include <functional>
 #include <unordered_map>
 
+#include "details/expected.h"
+#include "details/error.h"
 #include "details/typesafe.h"
 
 namespace het {
+
+using tl::expected;
+using tl::make_unexpected;
 
 using namespace metaf::util;
 
@@ -321,6 +326,14 @@ public:
     }
     (type_offset<safe_ref<Ts>>::reset(), ...);
     return {fraction<safe_ref<Ts>>().at(type_offset<safe_ref<Ts>>().offset - 1) ...};
+  }
+
+  template <typename... Ts> auto try_to_tuple() const -> expected<std::tuple<safe_ref<Ts>...>, access::error_code> {
+    if(!(contains<safe_ref<Ts>>() && ...)) {
+      return make_unexpected(access::error_code::ValueNotFound);
+    }
+    (type_offset<safe_ref<Ts>>::reset(), ...);
+    return {{fraction<safe_ref<Ts>>().at(type_offset<safe_ref<Ts>>().offset - 1) ...}};
   }
 
   // Find/Query accessors

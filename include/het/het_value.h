@@ -11,10 +11,14 @@
 #include <functional>
 #include <unordered_map>
 
+#include "details/expected.h"
+#include "details/error.h"
 #include "details/typesafe.h"
 
 namespace het {
 
+using tl::expected;
+using tl::make_unexpected;
 using namespace metaf::util;
 
 template <template <typename, typename, typename...> class C>
@@ -82,29 +86,27 @@ public:
   /**
    * \brief Returns const value of type T
    * \tparam T requested value type
-   * \return value
-   * \throw std::range_error if requested value not presented
+   * \return expected value or error code
    */
-  template <typename T> [[nodiscard]] const T & value() const {
+  template <typename T> [[nodiscard]] auto value() const -> expected<std::reference_wrapper<const T>, access::error_code> {
     auto & vs = hetero_value::values<T>();
     if(auto it = vs.find(this); it != std::end(vs)) {
       return it->second;
     }
-    throw std::range_error(AT "Out of range");
+    return make_unexpected(access::error_code::ValueNotFound);
   }
 
   /**
    * \brief Returns mutable value of type T
    * \tparam T requested value type
-   * \return value
-   * \throw std::range_error if requested value not presented
+   * \return expected value or error code
    */
-  template <typename T> [[nodiscard]] T & value() {
+  template <typename T> [[nodiscard]] auto value() -> expected<std::reference_wrapper<T>, access::error_code> {
     auto & vs = hetero_value::values<T>();
     if(auto it = vs.find(this); it != std::end(vs)) {
       return it->second;
     }
-    throw std::range_error(AT "Out of range");
+    return make_unexpected(access::error_code::ValueNotFound);
   }
 
   /**
@@ -112,11 +114,11 @@ public:
    * \tparam T requested value type
    * \return value value to add
    */
-  template <typename T> [[nodiscard]] const T & value_or_add(T const & value = T{}) {
+  template <typename T> [[nodiscard]] T & value_or_add(T const & value = T{}) {
     return value_or_add(std::move(value));
   }
 
-  template <typename T> [[nodiscard]] const T & value_or_add(T && value = T{}) {
+  template <typename T> [[nodiscard]] T & value_or_add(T && value = T{}) {
     auto & vs = hetero_value::values<T>();
     if(auto it = vs.find(this); it == std::end(vs)) {
       return add_value(std::forward<T>(value))->second;
@@ -162,22 +164,6 @@ public:
   }
 
   template <typename T, typename... Ts>
-  [[nodiscard]] constexpr auto equal(hetero_value const & rhs) const {
-    return [this, &rhs]<typename F>(F && f) -> bool {
-      return equal_single(std::forward<F>(f), rhs.template value<T>()) &&
-             (... && equal_single(std::forward<F>(f), rhs.template value<Ts>()));
-    };
-  }
-
-  template <typename T, typename... Ts>
-  [[nodiscard]] constexpr auto equal(hetero_value && rhs) const {
-    return [this, &rhs]<typename F>(F && f) -> bool {
-      return equal_single(std::forward<F>(f), rhs.template value<T>()) &&
-             (... && equal_single(std::forward<F>(f), rhs.template value<Ts>()));
-    };
-  }
-
-  template <typename T, typename... Ts>
   [[nodiscard]] constexpr auto match() const {
     return [this]<typename F, typename... Fs>(F && f, Fs &&... fs) {
       return match_single<T>(f, fs...) && (... && match_single<Ts>(f, fs...));
@@ -188,7 +174,14 @@ public:
     if(!(contains<safe_ref<Ts>>() && ...)) {
       throw std::out_of_range(AT "try to access unbounded value");
     }
-    return {value<safe_ref<Ts>>() ...};
+    return {value<safe_ref<Ts>>().value() ...};
+  }
+
+  template <typename... Ts> auto try_to_tuple() const -> expected<std::tuple<safe_ref<Ts>...>, access::error_code> {
+    if(!(contains<safe_ref<Ts>>() && ...)) {
+      return make_unexpected(access::error_code::ValueNotFound);
+    }
+    return {{value<safe_ref<Ts>>().value() ...}};
   }
 
 private:
@@ -209,15 +202,6 @@ private:
       return visitor(it->second);
     }
     return VisitorReturn::Continue;
-  }
-
-  template<typename T, typename U> constexpr bool equal_single(T && cmp, U const & arg) const {
-    static_assert(std::is_invocable_v<T, U, U>, "predicate should accept provided type");
-    auto & vs = hetero_value::values<U>();
-    if(auto it = vs.find(this); it != std::end(vs)) {
-      return cmp(it->second, arg);
-    }
-    return false;
   }
 
   template <typename T> auto add_value(T const & value) -> typename C<hetero_value const *, T>::iterator {
@@ -252,9 +236,9 @@ private:
         if(&from != &to) {
           auto & vs = hetero_value::values<T>();
           if constexpr(std::is_copy_constructible_v<T>) {
-            vs.insert_or_assign(&to, from.template value<T>());
+            vs.insert_or_assign(&to, from.value<T>().value().get());
           } else {
-            vs.insert_or_assign(&to, std::move(const_cast<hetero_value&>(from).template value<T>()));
+            vs.insert_or_assign(&to, std::move(const_cast<hetero_value&>(from).value<T>().value().get()));
           }
         }
       });
@@ -320,6 +304,21 @@ auto to_tuple(hetero_value<C> & hv) -> std::tuple<safe_ref<Ts>...> {
 template <typename... Ts, template <typename...> class C>
 auto to_tuple(hetero_value<C> && hv) -> std::tuple<safe_ref<Ts>...> {
   return hv.template to_tuple<Ts...>();
+}
+
+template <typename... Ts, template <typename...> class C>
+auto try_to_tuple(hetero_value<C> const & hv) -> expected<std::tuple<safe_ref<Ts>...>, access::error_code> {
+  return try_to_tuple<Ts...>(std::move(hv));
+}
+
+template <typename... Ts, template <typename...> class C>
+auto try_to_tuple(hetero_value<C> & hv) -> expected<std::tuple<safe_ref<Ts>...>, access::error_code> {
+  return try_to_tuple<Ts...>(std::move(hv));
+}
+
+template <typename... Ts, template <typename...> class C>
+auto try_to_tuple(hetero_value<C> && hv) -> expected<std::tuple<safe_ref<Ts>...>, access::error_code> {
+  return hv.template try_to_tuple<Ts...>();
 }
 
 using hvalue = hetero_value<std::unordered_map>;

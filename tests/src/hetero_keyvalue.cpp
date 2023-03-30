@@ -43,7 +43,13 @@ TEST_CASE("heterogeneous key-value one-by-one ctor test") {
 TEST_CASE("heterogeneous key-value unbounded value access") {
   het::hkeyvalue hkv;
   CHECK_THROWS_AS((het::to_tuple<int, double>(hkv, 1)), std::out_of_range); // {int(1)->int+, int(1)->double+}
-  CHECK_THROWS_AS(het::to_vector<int>(hkv, "key1"sv), std::out_of_range); // {string_view("key")->int+}
+  CHECK_THROWS_AS((het::to_vector<int>(hkv, "key1"sv)), std::out_of_range); // {string_view("key")->int+}
+}
+
+TEST_CASE("heterogeneous key-value safe value access") {
+  het::hkeyvalue hkv;
+  CHECK_EQ(het::try_to_tuple<int, double>(hkv, 1).value_or(std::make_tuple(0, 0.)), std::make_tuple(0, 0.)); // {int(1)->int+, int(1)->double+}
+  CHECK_EQ(het::try_to_vector<int>(hkv, "key1"sv).map_error([](auto){return nullptr;}).error(), nullptr); // {string_view("key")->int+}
 }
 
 TEST_CASE("heterogeneous key-value to tuple transform") {
@@ -82,7 +88,7 @@ TEST_CASE("heterogeneous key-value to vector transform") {
 
 TEST_CASE("heterogeneous key-value move ctor test") {
   het::hkeyvalue hkv(std::make_pair(1, std::make_unique<int>(123)));
-  CHECK(*hkv.template value<std::unique_ptr<int>>(1).get() == *std::make_unique<int>(123).get());
+  CHECK(*hkv.template value<std::unique_ptr<int>>(1).value().get() == *std::make_unique<int>(123).get());
 }
 
 TEST_CASE("heterogeneous key-value bulk ctor test") {

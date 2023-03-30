@@ -10,6 +10,22 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 include(ExternalProject)
 find_package(Git REQUIRED)
 
+ExternalProject_Add(expected
+        PREFIX ${CMAKE_CURRENT_SOURCE_DIR}/3rd/expected
+        #    GIT_TAG main
+        GIT_REPOSITORY https://github.com/TartanLlama/expected
+        TIMEOUT 10
+        UPDATE_COMMAND ${GIT_EXECUTABLE} pull
+        #    CONFIGURE_COMMAND ""
+        #    BUILD_COMMAND ""
+        INSTALL_COMMAND ""
+        LOG_DOWNLOAD ON
+        )
+
+ExternalProject_Get_Property(expected source_dir)
+set(EXPECTED_INCLUDE_DIR ${source_dir}/include CACHE INTERNAL "expected")
+message("expected: " ${EXPECTED_INCLUDE_DIR})
+
 ExternalProject_Add(
         doctest
         PREFIX ${CMAKE_BINARY_DIR}/3rd/doctest
@@ -55,18 +71,19 @@ set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fPIC -O0 -Wall -Wextra -Wpe
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -fPIC -Wall -Wextra -Wpedantic -O2 -DNDEBUG")
 set(CMAKE_CONFIGURATION_TYPES "Debug;Release" CACHE STRING "" FORCE)
 set(SOURCE_FILES
-        include/het/details/uncommon_definitions.h
+    include/het/details/uncommon_definitions.h
     include/het/het.h)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    add_compile_options("-Wall" "-Wextra" "-Wconversion" "-Wpedantic")
+    add_compile_options("-Wall" "-Wextra" "-Wconversion" "-Wpedantic" "-fsanitize=address")
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
-    add_compile_options("-Wall" "-Wextra" "-Wconversion" "-Wpedantic" "-fconcepts")
+    add_compile_options("-Wall" "-Wextra" "-Wconversion" "-Wpedantic" "-fconcepts" "-fsanitize=address")
 endif()
 
 configure_file(version_config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/include/generated/version_config.h)
 
 include_directories(
+        ${EXPECTED_INCLUDE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}/include/generated
         ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${CMAKE_CURRENT_SOURCE_DIR}

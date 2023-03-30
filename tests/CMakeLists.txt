@@ -12,7 +12,14 @@ add_executable(het_tests
         src/hetero_container.cpp
         )
 
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    add_compile_options("-fsanitize=address")
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+    add_compile_options("-fsanitize=address")
+endif()
+
 target_link_libraries(het_tests
+        asan
         dl
 )
 
@@ -25,6 +32,7 @@ add_executable(het_bench
         )
 
 target_link_libraries(het_bench
+        asan
         dl
         pthread
         ${GBENCH_LIB_DIR}/libbenchmark.a

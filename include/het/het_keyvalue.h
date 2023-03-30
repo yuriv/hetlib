@@ -11,9 +11,14 @@
 #include <functional>
 #include <unordered_map>
 
+#include "details/expected.h"
+#include "details/error.h"
 #include "details/typesafe.h"
 
 namespace het {
+
+using tl::expected;
+using tl::make_unexpected;
 
 using namespace metaf::util;
 
@@ -61,7 +66,7 @@ public:
   }
 
   void assign(hetero_key_value && value) noexcept {
-    assign(static_cast<hetero_key_value const *>(value));
+    assign(static_cast<hetero_key_value const &>(value));
   }
 
   template <typename... Ts> void assign_values(Ts const &... values) {
@@ -92,14 +97,15 @@ public:
    * \return value
    * \throw std::range_error if requested value not presented
    */
-  template <typename T, typename K> [[nodiscard]] const T & value(K && key) const {
+  template <typename T, typename K> [[nodiscard]] auto value(K && key) const
+    -> expected<std::reference_wrapper<const T>, access::error_code> {
     auto & vs = hetero_key_value::values<K, T>();
     if(auto it = vs.find(this); it != std::end(vs)) {
       if(auto it2 = it->second.find(std::forward<K>(key)); it2 != std::end(it->second)) {
         return it2->second;
       }
     }
-    throw std::range_error(AT "Out of range");
+    return make_unexpected(access::error_code::UnboundedValue);
   }
 
   /**
@@ -108,14 +114,15 @@ public:
    * \return value
    * \throw std::range_error if requested value not presented
    */
-  template <typename T, typename K> [[nodiscard]] T & value(K && key) {
+  template <typename T, typename K> [[nodiscard]] auto value(K && key)
+    -> expected<std::reference_wrapper<T>, access::error_code> {
     auto & vs = hetero_key_value::values<K, T>();
     if(auto it = vs.find(this); it != std::end(vs)) {
       if(auto it2 = it->second.find(std::forward<K>(key)); it2 != std::end(it->second)) {
         return it2->second;
       }
     }
-    throw std::range_error(AT "Out of range");
+    return make_unexpected(access::error_code::UnboundedValue);
   }
 
   /**
@@ -192,7 +199,15 @@ public:
     if(!(contains<safe_ref<Ts>>(std::forward<K>(key)) && ...)) {
       throw std::out_of_range(AT "try to access unbounded value");
     }
-    return {value<safe_ref<Ts>>(std::forward<K>(key)) ...};
+    return {value<safe_ref<Ts>>(std::forward<K>(key)).value() ...};
+  }
+
+  template <typename... Ts, typename K>
+  auto try_to_tuple(K && key) const -> expected<std::tuple<safe_ref<Ts>...>, access::error_code> {
+    if(!(contains<safe_ref<Ts>>(std::forward<K>(key)) && ...)) {
+      return make_unexpected(access::error_code::UnboundedValue);
+    }
+    return {std::make_tuple(value<safe_ref<Ts>>(std::forward<K>(key)).value() ...)};
   }
 
   template <typename T, typename... Ks>
@@ -200,7 +215,15 @@ public:
     if(!(contains<safe_ref<T>>(std::forward<Ks>(keys)) && ...)) {
       throw std::out_of_range(AT "try to access unbounded value");
     }
-    return {value<safe_ref<T>>(std::forward<Ks>(keys)) ...};
+    return {value<safe_ref<T>>(std::forward<Ks>(keys)).value() ...};
+  }
+
+  template <typename T, typename... Ks>
+  auto try_to_vector(Ks &&... keys) const -> expected<std::vector<safe_ref<T>>, access::error_code> {
+    if(!(contains<safe_ref<T>>(std::forward<Ks>(keys)) && ...)) {
+      return make_unexpected(access::error_code::UnboundedValue);
+    }
+    return {{value<safe_ref<T>>(std::forward<Ks>(keys)).value() ...}};
   }
 
 private:
@@ -256,11 +279,11 @@ private:
       // if someone copies me, they need to call each copy_function and pass themself
       _copy_functions.template emplace_back([](const hetero_key_value & from, hetero_key_value & to) {
         if(&from != &to) {
-          auto & vs = hetero_key_value::values<K, T>();
+          auto & vs = hetero_key_value::template values<K, T>();
           if constexpr(std::is_copy_constructible_v<T>) {
-            vs.insert_or_assign(&to, hetero_key_value::template values<K, T>().at(&from));
+            vs.insert_or_assign(&to, vs.at(&from));
           } else {
-            vs.insert_or_assign(&to, std::move(hetero_key_value::template values<K, T>().at(&const_cast<hetero_key_value&>(from))));
+            vs.insert_or_assign(&to, std::move(vs.at(&const_cast<hetero_key_value&>(from))));
           }
         }
       });
@@ -292,6 +315,21 @@ auto to_tuple(hetero_key_value<C> && hkv, K && key) -> std::tuple<safe_ref<Ts>..
   return hkv.template to_tuple<Ts...>(std::forward<K>(key));
 }
 
+template <typename... Ts, typename K, template <typename...> class C>
+auto try_to_tuple(hetero_key_value<C> const & hkv, K && key) -> expected<std::tuple<safe_ref<Ts>...>, access::error_code> {
+  return try_to_tuple<Ts...>(move(hkv), std::forward<K>(key));
+}
+
+template <typename... Ts, typename K, template <typename...> class C>
+auto try_to_tuple(hetero_key_value<C> & hkv, K && key) -> expected<std::tuple<safe_ref<Ts>...>, access::error_code> {
+  return try_to_tuple<Ts...>(std::move(hkv), std::forward<K>(key));
+}
+
+template <typename... Ts, typename K, template <typename...> class C>
+auto try_to_tuple(hetero_key_value<C> && hkv, K && key) -> expected<std::tuple<safe_ref<Ts>...>, access::error_code> {
+  return hkv.template try_to_tuple<Ts...>(std::forward<K>(key));
+}
+
 template <typename T, template <typename...> class C, typename... Ks>
 auto to_vector(hetero_key_value<C> const & hkv, Ks &&... keys) -> std::vector<safe_ref<T>> {
   return to_vector<T>(std::move(hkv), std::forward<Ks>(keys)...);
@@ -305,6 +343,21 @@ auto to_vector(hetero_key_value<C> & hkv, Ks &&... keys) -> std::vector<safe_ref
 template <typename T, template <typename...> class C, typename... Ks>
 auto to_vector(hetero_key_value<C> && hkv, Ks &&... keys) -> std::vector<safe_ref<T>> {
   return hkv.template to_vector<T>(std::forward<Ks>(keys)...);
+}
+
+template <typename T, template <typename...> class C, typename... Ks>
+auto try_to_vector(hetero_key_value<C> const & hkv, Ks &&... keys) -> expected<std::vector<safe_ref<T>>, access::error_code> {
+  return try_to_vector<T>(std::move(hkv), std::forward<Ks>(keys)...);
+}
+
+template <typename T, template <typename...> class C, typename... Ks>
+auto try_to_vector(hetero_key_value<C> & hkv, Ks &&... keys) -> expected<std::vector<safe_ref<T>>, access::error_code> {
+  return try_to_vector<T>(std::move(hkv), std::forward<Ks>(keys)...);
+}
+
+template <typename T, template <typename...> class C, typename... Ks>
+auto try_to_vector(hetero_key_value<C> && hkv, Ks &&... keys) -> expected<std::vector<safe_ref<T>>, access::error_code> {
+  return hkv.template try_to_vector<T>(std::forward<Ks>(keys)...);
 }
 
 using hkeyvalue = hetero_key_value<std::unordered_map>;
