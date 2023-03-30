@@ -38,7 +38,12 @@ TEST_CASE("heterogeneous value one-by-one ctor test") {
 
 TEST_CASE("heterogeneous value unbounded value access") {
   het::hvalue hv;
-  CHECK_THROWS_AS(het::to_tuple<int>(hv), std::out_of_range);
+  CHECK_THROWS_AS(het::to_tuple<int>(hv), std::range_error);
+}
+
+TEST_CASE("heterogeneous value safe value access") {
+  het::hvalue hv;
+  CHECK_EQ(het::try_to_tuple<int>(hv).value_or(std::make_tuple(0)), std::make_tuple(0)); // {int(1)->int+, int(1)->double+}
 }
 
 TEST_CASE("heterogeneous value to tuple transform") {
