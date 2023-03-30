@@ -10,4 +10,5 @@ add_executable(het_pattern_match
 
 target_link_libraries(het_pattern_match
         dl
+        asan
 )

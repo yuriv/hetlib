@@ -60,7 +60,7 @@ TEST_CASE("heterogeneous value to tuple transform") {
 
 TEST_CASE("heterogeneous value move ctor test") {
   het::hvalue hv(std::make_unique<int>(123));
-  CHECK(*hv.template value<std::unique_ptr<int>>().value().get() == *std::make_unique<int>(123).get());
+  CHECK(*hv.template value<std::unique_ptr<int>>().get() == *std::make_unique<int>(123).get());
 }
 
 TEST_CASE("heterogeneous value bulk ctor test") {
@@ -140,10 +140,10 @@ TEST_CASE("heterogeneous non-trivial value test") {
 
   CHECK(hv1.value<int>() == 3);
 
-  CHECK(hv1.value<hetero_rec>()->get()._h.fraction<int>().size() == 1);
-  CHECK(hv1.value<hetero_rec>().value().get()._h.fraction<int>()[0] == 12);
-  CHECK(hv1.value<hetero_rec>()->get()._p.first == "name");
-  CHECK(hv1.value<hetero_rec>()->get()._p.second == "value");
+  CHECK(hv1.value<hetero_rec>()._h.fraction<int>().size() == 1);
+  CHECK(hv1.value<hetero_rec>()._h.fraction<int>()[0] == 12);
+  CHECK(hv1.value<hetero_rec>()._p.first == "name");
+  CHECK(hv1.value<hetero_rec>()._p.second == "value");
 
   het::hvalue hv2 = hv1;
   CHECK(!hv2.empty());
@@ -183,18 +183,18 @@ TEST_CASE("heterogeneous non-trivial value test") {
 
   CHECK(hv.value<int>() == 3);
 
-  CHECK(hv.value<hetero_rec>()->get()._h.fraction<int>().size() == 1);
-  CHECK(hv.value<hetero_rec>().value().get()._h.fraction<int>()[0] == 12);
-  CHECK(hv.value<hetero_rec>()->get()._p.first == "name");
-  CHECK(hv.value<hetero_rec>()->get()._p.second == "value");
+  CHECK(hv.value<hetero_rec>()._h.fraction<int>().size() == 1);
+  CHECK(hv.value<hetero_rec>()._h.fraction<int>()[0] == 12);
+  CHECK(hv.value<hetero_rec>()._p.first == "name");
+  CHECK(hv.value<hetero_rec>()._p.second == "value");
 
   CHECK(!hv2.empty());
   CHECK(hv2.arity() == 5);
 
   CHECK(hv2.value<int>() == 3);
 
-  CHECK(hv2.value<hetero_rec>()->get()._h.fraction<int>().size() == 1);
-  CHECK(hv2.value<hetero_rec>().value().get()._h.fraction<int>()[0] == 12);
-  CHECK(hv2.value<hetero_rec>()->get()._p.first == "name");
-  CHECK(hv2.value<hetero_rec>()->get()._p.second == "value");
+  CHECK(hv2.value<hetero_rec>()._h.fraction<int>().size() == 1);
+  CHECK(hv2.value<hetero_rec>()._h.fraction<int>()[0] == 12);
+  CHECK(hv2.value<hetero_rec>()._p.first == "name");
+  CHECK(hv2.value<hetero_rec>()._p.second == "value");
 }

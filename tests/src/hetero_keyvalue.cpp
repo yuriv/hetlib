@@ -88,7 +88,7 @@ TEST_CASE("heterogeneous key-value to vector transform") {
 
 TEST_CASE("heterogeneous key-value move ctor test") {
   het::hkeyvalue hkv(std::make_pair(1, std::make_unique<int>(123)));
-  CHECK(*hkv.template value<std::unique_ptr<int>>(1).value().get() == *std::make_unique<int>(123).get());
+  CHECK(*hkv.template value<std::unique_ptr<int>>(1).get() == *std::make_unique<int>(123).get());
 }
 
 TEST_CASE("heterogeneous key-value bulk ctor test") {

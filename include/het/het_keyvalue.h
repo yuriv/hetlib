@@ -94,35 +94,33 @@ public:
   /**
    * \brief Returns const value of type T
    * \tparam T requested value type
-   * \return value
-   * \throw std::range_error if requested value not presented
+   * \return expected value
+   * \throw std::range_error wuth access::error_code::UnboundedValue
    */
-  template <typename T, typename K> [[nodiscard]] auto value(K && key) const
-    -> expected<std::reference_wrapper<const T>, access::error_code> {
+  template <typename T, typename K> [[nodiscard]] auto value(K && key) const -> T const & {
     auto & vs = hetero_key_value::values<K, T>();
     if(auto it = vs.find(this); it != std::end(vs)) {
       if(auto it2 = it->second.find(std::forward<K>(key)); it2 != std::end(it->second)) {
         return it2->second;
       }
     }
-    return make_unexpected(access::error_code::UnboundedValue);
+    throw std::range_error(access_error_code(access::error_code::UnboundedValue).message());
   }
 
   /**
    * \brief Returns mutable value of type T
    * \tparam T requested value type
-   * \return value
-   * \throw std::range_error if requested value not presented
+   * \return expected value
+   * \throw std::range_error wuth access::error_code::UnboundedValue
    */
-  template <typename T, typename K> [[nodiscard]] auto value(K && key)
-    -> expected<std::reference_wrapper<T>, access::error_code> {
+  template <typename T, typename K> [[nodiscard]] auto value(K && key) -> T & {
     auto & vs = hetero_key_value::values<K, T>();
     if(auto it = vs.find(this); it != std::end(vs)) {
       if(auto it2 = it->second.find(std::forward<K>(key)); it2 != std::end(it->second)) {
         return it2->second;
       }
     }
-    return make_unexpected(access::error_code::UnboundedValue);
+    throw std::range_error(access_error_code(access::error_code::UnboundedValue).message());
   }
 
   /**
@@ -199,7 +197,7 @@ public:
     if(!(contains<safe_ref<Ts>>(std::forward<K>(key)) && ...)) {
       throw std::out_of_range(AT "try to access unbounded value");
     }
-    return {value<safe_ref<Ts>>(std::forward<K>(key)).value() ...};
+    return {value<safe_ref<Ts>>(std::forward<K>(key)) ...};
   }
 
   template <typename... Ts, typename K>
@@ -207,7 +205,7 @@ public:
     if(!(contains<safe_ref<Ts>>(std::forward<K>(key)) && ...)) {
       return make_unexpected(access::error_code::UnboundedValue);
     }
-    return {std::make_tuple(value<safe_ref<Ts>>(std::forward<K>(key)).value() ...)};
+    return {std::make_tuple(value<safe_ref<Ts>>(std::forward<K>(key)) ...)};
   }
 
   template <typename T, typename... Ks>
@@ -215,7 +213,7 @@ public:
     if(!(contains<safe_ref<T>>(std::forward<Ks>(keys)) && ...)) {
       throw std::out_of_range(AT "try to access unbounded value");
     }
-    return {value<safe_ref<T>>(std::forward<Ks>(keys)).value() ...};
+    return {value<safe_ref<T>>(std::forward<Ks>(keys)) ...};
   }
 
   template <typename T, typename... Ks>
@@ -223,7 +221,7 @@ public:
     if(!(contains<safe_ref<T>>(std::forward<Ks>(keys)) && ...)) {
       return make_unexpected(access::error_code::UnboundedValue);
     }
-    return {{value<safe_ref<T>>(std::forward<Ks>(keys)).value() ...}};
+    return {{value<safe_ref<T>>(std::forward<Ks>(keys)) ...}};
   }
 
 private:

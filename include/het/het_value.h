@@ -86,27 +86,29 @@ public:
   /**
    * \brief Returns const value of type T
    * \tparam T requested value type
-   * \return expected value or error code
+   * \return expected value
+   * \throw std::range_error with access::error_code::ValueNotFound
    */
-  template <typename T> [[nodiscard]] auto value() const -> expected<std::reference_wrapper<const T>, access::error_code> {
+  template <typename T> [[nodiscard]] auto value() const -> const T & {
     auto & vs = hetero_value::values<T>();
     if(auto it = vs.find(this); it != std::end(vs)) {
       return it->second;
     }
-    return make_unexpected(access::error_code::ValueNotFound);
+    throw std::range_error(access_error_code(access::error_code::ValueNotFound).message());
   }
 
   /**
    * \brief Returns mutable value of type T
    * \tparam T requested value type
-   * \return expected value or error code
+   * \return expected value
+   * \throw std::range_error with access::error_code::ValueNotFound
    */
-  template <typename T> [[nodiscard]] auto value() -> expected<std::reference_wrapper<T>, access::error_code> {
+  template <typename T> [[nodiscard]] auto value() -> T & {
     auto & vs = hetero_value::values<T>();
     if(auto it = vs.find(this); it != std::end(vs)) {
       return it->second;
     }
-    return make_unexpected(access::error_code::ValueNotFound);
+    throw std::range_error(access_error_code(access::error_code::ValueNotFound).message());
   }
 
   /**
@@ -172,16 +174,16 @@ public:
 
   template <typename... Ts> auto to_tuple() const -> std::tuple<safe_ref<Ts>...> {
     if(!(contains<safe_ref<Ts>>() && ...)) {
-      throw std::out_of_range(AT "try to access unbounded value");
+      throw std::range_error(access_error_code(access::error_code::UnboundedValue).message());
     }
-    return {value<safe_ref<Ts>>().value() ...};
+    return {value<safe_ref<Ts>>() ...};
   }
 
   template <typename... Ts> auto try_to_tuple() const -> expected<std::tuple<safe_ref<Ts>...>, access::error_code> {
     if(!(contains<safe_ref<Ts>>() && ...)) {
       return make_unexpected(access::error_code::ValueNotFound);
     }
-    return {{value<safe_ref<Ts>>().value() ...}};
+    return {{value<safe_ref<Ts>>() ...}};
   }
 
 private:
@@ -236,9 +238,9 @@ private:
         if(&from != &to) {
           auto & vs = hetero_value::values<T>();
           if constexpr(std::is_copy_constructible_v<T>) {
-            vs.insert_or_assign(&to, from.value<T>().value().get());
+            vs.insert_or_assign(&to, from.value<T>());
           } else {
-            vs.insert_or_assign(&to, std::move(const_cast<hetero_value&>(from).value<T>().value().get()));
+            vs.insert_or_assign(&to, std::move(const_cast<hetero_value&>(from).value<T>()));
           }
         }
       });
