@@ -8,6 +8,8 @@
 #include "uncommon_definitions.h"
 #include "match.h"
 
+#include <type_traits>
+
 namespace het {
 
 enum class VisitorReturn { Break, Continue };
