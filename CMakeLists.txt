@@ -7,41 +7,24 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 #set(CMAKE_CXX_EXTENSIONS OFF)
 
-include(ExternalProject)
 find_package(Git REQUIRED)
 
-ExternalProject_Add(expected
-        PREFIX ${CMAKE_CURRENT_SOURCE_DIR}/3rd/expected
+include(FetchContent)
+
+FetchContent_Declare(expected GIT_REPOSITORY https://github.com/TartanLlama/expected
         #    GIT_TAG main
-        GIT_REPOSITORY https://github.com/TartanLlama/expected
-        TIMEOUT 10
-        UPDATE_COMMAND ${GIT_EXECUTABLE} pull
-        #    CONFIGURE_COMMAND ""
-        #    BUILD_COMMAND ""
-        INSTALL_COMMAND ""
-        LOG_DOWNLOAD ON
         )
 
-ExternalProject_Get_Property(expected source_dir)
-set(EXPECTED_INCLUDE_DIR ${source_dir}/include CACHE INTERNAL "expected")
-message("expected: " ${EXPECTED_INCLUDE_DIR})
+FetchContent_MakeAvailable(expected)
+set(EXPECTED_INCLUDE_DIR ${expected_SOURCE_DIR}/include)
+message("expected\n" ${EXPECTED_INCLUDE_DIR})
 
-ExternalProject_Add(
-        doctest
-        PREFIX ${CMAKE_BINARY_DIR}/3rd/doctest
-        GIT_REPOSITORY https://github.com/doctest/doctest.git
-        TIMEOUT 10
-        UPDATE_COMMAND ${GIT_EXECUTABLE} pull
-        CONFIGURE_COMMAND ""
-        BUILD_COMMAND ""
-        INSTALL_COMMAND ""
-        LOG_DOWNLOAD ON
-)
+FetchContent_Declare(doctest GIT_REPOSITORY https://github.com/doctest/doctest.git GIT_TAG master)
+FetchContent_MakeAvailable(doctest)
+set(DOCTEST_INCLUDE_DIR ${doctest_SOURCE_DIR}/doctest)
+message("doctest:\n" ${DOCTEST_INCLUDE_DIR})
 
-# Expose required variable (DOCTEST_INCLUDE_DIR) to parent scope
-ExternalProject_Get_Property(doctest source_dir)
-set(DOCTEST_INCLUDE_DIR ${source_dir}/doctest CACHE INTERNAL "")
-
+include(ExternalProject)
 ExternalProject_Add(
     benchmark
     PREFIX ${CMAKE_BINARY_DIR}/3rd/benchmark
