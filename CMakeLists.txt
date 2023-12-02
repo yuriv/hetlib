@@ -11,20 +11,27 @@ find_package(Git REQUIRED)
 
 include(FetchContent)
 
-FetchContent_Declare(expected GIT_REPOSITORY https://github.com/TartanLlama/expected
-        #    GIT_TAG main
-        )
-
-FetchContent_MakeAvailable(expected)
-set(EXPECTED_INCLUDE_DIR ${expected_SOURCE_DIR}/include)
-message("expected\n" ${EXPECTED_INCLUDE_DIR})
-
 FetchContent_Declare(doctest GIT_REPOSITORY https://github.com/doctest/doctest.git GIT_TAG master)
 FetchContent_MakeAvailable(doctest)
 set(DOCTEST_INCLUDE_DIR ${doctest_SOURCE_DIR}/doctest)
 message("doctest:\n" ${DOCTEST_INCLUDE_DIR})
 
 include(ExternalProject)
+
+ExternalProject_Add(hetlib
+        PREFIX ${CMAKE_CURRENT_SOURCE_DIR}/3rd/hetlib
+        GIT_REPOSITORY https://github.com/yuriv/hetlib.git
+        GIT_TAG master
+        TIMEOUT 10
+        UPDATE_COMMAND ${GIT_EXECUTABLE} pull
+        #        CONFIGURE_COMMAND "cmake -Bbuild -DCMAKE_BUILD_TYPE=Debug .."
+        #        BUILD_COMMAND "cmake -build ."
+        #        INSTALL_COMMAND ""
+        LOG_DOWNLOAD ON
+        )
+set(HETLIB_INCLUDE_DIR ${hetlib_SOURCE_DIR}/include)
+message("hetlib:\n${HETLIB_INCLUDE_DIR}")
+
 ExternalProject_Add(
     benchmark
     PREFIX ${CMAKE_BINARY_DIR}/3rd/benchmark
