@@ -7,9 +7,11 @@
 
 #include "generated/version_config.h"
 
-#define STRINGIFY(x) #x
-#define TOSTRING(x) STRINGIFY(x)
-#define AT __FILE__ ":" TOSTRING(__LINE__) ": "
+#ifndef AT
+  #define STRINGIFY(x) #x
+  #define TOSTRING(x) STRINGIFY(x)
+  #define AT __FILE__ ":" TOSTRING(__LINE__) ": "
+#endif
 
 #include <iostream>
 
