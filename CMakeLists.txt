@@ -18,19 +18,19 @@ message("doctest:\n" ${DOCTEST_INCLUDE_DIR})
 
 include(ExternalProject)
 
-ExternalProject_Add(hetlib
-        PREFIX ${CMAKE_CURRENT_SOURCE_DIR}/3rd/hetlib
-        GIT_REPOSITORY https://github.com/yuriv/hetlib.git
-        GIT_TAG master
+ExternalProject_Add(expected
+        PREFIX ${CMAKE_CURRENT_SOURCE_DIR}/3rd/expected
+        GIT_REPOSITORY https://github.com/TartanLlama/expected
         TIMEOUT 10
         UPDATE_COMMAND ${GIT_EXECUTABLE} pull
-        #        CONFIGURE_COMMAND "cmake -Bbuild -DCMAKE_BUILD_TYPE=Debug .."
-        #        BUILD_COMMAND "cmake -build ."
+        #        CONFIGURE_COMMAND ""
+        #        BUILD_COMMAND ""
         #        INSTALL_COMMAND ""
         LOG_DOWNLOAD ON
         )
-set(HETLIB_INCLUDE_DIR ${hetlib_SOURCE_DIR}/include)
-message("hetlib:\n${HETLIB_INCLUDE_DIR}")
+ExternalProject_Get_Property(expected source_dir)
+set(EXPECTED_INCLUDE_DIR ${source_dir}/include)
+message("expected:\n" ${EXPECTED_INCLUDE_DIR})
 
 ExternalProject_Add(
     benchmark
