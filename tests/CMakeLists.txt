@@ -37,6 +37,7 @@ add_executable(het_tests
         src/hetero_keyvalue.cpp
         src/hetero_container.cpp
         )
+target_compile_features(het_tests PUBLIC cxx_std_20)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     add_compile_options("-fsanitize=address")
@@ -56,6 +57,7 @@ add_executable(het_bench
         src/hetero_keyvalue_bench.cpp
         src/hetero_container_bench.cpp
         )
+target_compile_features(het_bench PUBLIC cxx_std_20)
 
 target_link_libraries(het_bench
         asan
