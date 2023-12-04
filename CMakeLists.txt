@@ -61,8 +61,24 @@ set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fPIC -O0 -Wall -Wextra -Wpe
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -fPIC -Wall -Wextra -Wpedantic -O2 -DNDEBUG")
 set(CMAKE_CONFIGURATION_TYPES "Debug;Release" CACHE STRING "" FORCE)
 set(SOURCE_FILES
+    include/het/details/domains.h
+    include/het/details/error.h
+    include/het/details/expected.h
+    include/het/details/match.h
+    include/het/details/type_ctors_util.h
+    include/het/details/typesafe.h
     include/het/details/uncommon_definitions.h
-    include/het/het.h)
+    include/het/het.h
+    include/het/het_container.h
+    include/het/het_keyvalue.h
+    include/het/het_value.h
+    )
+set(INTERFACE_FILES
+    include/het/het.h
+    include/het/het_container.h
+    include/het/het_keyvalue.h
+    include/het/het_value.h
+    )
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     add_compile_options("-Wall" "-Wextra" "-Wconversion" "-Wpedantic" "-fsanitize=address")
@@ -72,6 +88,13 @@ endif()
 
 configure_file(version_config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/include/generated/version_config.h)
 
+add_library(hetlib INTERFACE)
+target_sources(hetlib INTERFACE 
+    FILE_SET HEADERS 
+    BASE_DIRS ${PROJECT_SOURCE_DIR}
+    FILES ${INTERFACE_FILES}
+    )
+    
 include_directories(
         ${EXPECTED_INCLUDE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}/include/generated
@@ -84,3 +107,5 @@ add_subdirectory(examples)
 enable_testing()
 
 add_subdirectory(tests)
+
+install(TARGETS hetlib FILE_SET HEADERS)
