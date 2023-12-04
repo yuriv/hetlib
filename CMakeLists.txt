@@ -85,7 +85,6 @@ target_compile_features(hetlib INTERFACE cxx_std_20)
 
 include_directories(
         ${EXPECTED_INCLUDE_DIR}
-        ${CMAKE_CURRENT_SOURCE_DIR}/include/generated
         ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${CMAKE_CURRENT_SOURCE_DIR}
     )
@@ -115,7 +114,7 @@ install(TARGETS hetlib FILE_SET HEADERS)
 
 #install(TARGETS hetlib
 #        EXPORT ${PROJECT_NAME}-targets
-#        INCLUDES DESTINATION "${CMAKE_INSTALL_DATADIR}")
+#)
 #
 #install(EXPORT ${PROJECT_NAME}-targets
 #        DESTINATION "${CMAKE_INSTALL_DATADIR}/cmake/${PROJECT_NAME}"
