@@ -94,7 +94,7 @@ target_sources(hetlib INTERFACE
     BASE_DIRS ${PROJECT_SOURCE_DIR}
     FILES ${INTERFACE_FILES}
     )
-target_compile_features(hetlib PUBLIC cxx_std_20)
+target_compile_features(hetlib INTERFACE cxx_std_20)
 
 include_directories(
         ${EXPECTED_INCLUDE_DIR}
