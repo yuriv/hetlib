@@ -1,3 +1,29 @@
+include(ExternalProject)
+
+ExternalProject_Add(
+        benchmark
+        PREFIX ${CMAKE_BINARY_DIR}/3rd/benchmark
+        GIT_REPOSITORY https://github.com/google/benchmark.git
+        CMAKE_ARGS "-DCMAKE_BUILD_TYPE=Release" "-DCMAKE_INSTALL_LIBDIR=lib64" "-DBENCHMARK_DOWNLOAD_DEPENDENCIES=ON" "-DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/3rd/benchmark"
+        GIT_TAG main
+        TIMEOUT 10
+        UPDATE_COMMAND ${GIT_EXECUTABLE} pull
+        LOG_DOWNLOAD ON
+)
+
+ExternalProject_Get_Property(benchmark install_dir)
+set(GBENCH_INCLUDE_DIR ${install_dir}/include CACHE INTERNAL "")
+
+ExternalProject_Get_Property(benchmark binary_dir)
+set(GBENCH_LIB_DIR ${install_dir}/lib64 CACHE INTERNAL "")
+
+include(FetchContent)
+
+FetchContent_Declare(doctest GIT_REPOSITORY https://github.com/doctest/doctest.git GIT_TAG master)
+FetchContent_MakeAvailable(doctest)
+set(DOCTEST_INCLUDE_DIR ${doctest_SOURCE_DIR}/doctest)
+message("doctest:\n" ${DOCTEST_INCLUDE_DIR})
+
 include_directories(
         ../include
         ${DOCTEST_INCLUDE_DIR}

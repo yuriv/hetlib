@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.6)
+cmake_minimum_required(VERSION 3.11)
 project(hetlib VERSION 0.0.1 LANGUAGES CXX DESCRIPTION "HetLib is a header-only heterogeneous container library")
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
@@ -7,48 +7,32 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 #set(CMAKE_CXX_EXTENSIONS OFF)
 
+option(HETLIB_BUILD_PACKAGE "Build package files as well" OFF)
+
 find_package(Git REQUIRED)
 
 include(FetchContent)
 
-FetchContent_Declare(doctest GIT_REPOSITORY https://github.com/doctest/doctest.git GIT_TAG master)
-FetchContent_MakeAvailable(doctest)
-set(DOCTEST_INCLUDE_DIR ${doctest_SOURCE_DIR}/doctest)
-message("doctest:\n" ${DOCTEST_INCLUDE_DIR})
+FetchContent_Declare(expected GIT_REPOSITORY https://github.com/TartanLlama/expected GIT_TAG master)
+FetchContent_MakeAvailable(expected)
+set(EXPECTED_INCLUDE_DIR ${expected_SOURCE_DIR}/include)
+message("expected:\n${EXPECTED_INCLUDE_DIR}")
 
-include(ExternalProject)
-
-ExternalProject_Add(expected
-        PREFIX ${CMAKE_CURRENT_SOURCE_DIR}/3rd/expected
-        GIT_REPOSITORY https://github.com/TartanLlama/expected
-        TIMEOUT 10
-        UPDATE_COMMAND ${GIT_EXECUTABLE} pull
-        #CONFIGURE_COMMAND ""
-        #BUILD_COMMAND ""
-        INSTALL_COMMAND ""
-        LOG_DOWNLOAD ON
-        )
-ExternalProject_Get_Property(expected source_dir)
-set(EXPECTED_INCLUDE_DIR ${source_dir}/include)
-message("expected:\n" ${EXPECTED_INCLUDE_DIR})
-
-ExternalProject_Add(
-    benchmark
-    PREFIX ${CMAKE_BINARY_DIR}/3rd/benchmark
-    GIT_REPOSITORY https://github.com/google/benchmark.git
-    CMAKE_ARGS "-DCMAKE_BUILD_TYPE=Release" "-DCMAKE_INSTALL_LIBDIR=lib64" "-DBENCHMARK_DOWNLOAD_DEPENDENCIES=ON" "-DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/3rd/benchmark"
-    GIT_TAG main
-    TIMEOUT 10
-    UPDATE_COMMAND ${GIT_EXECUTABLE} pull
-    LOG_DOWNLOAD ON
-)
-
-# Expose required variable (GBENCH_INCLUDE_DIR) to parent scope
-ExternalProject_Get_Property(benchmark install_dir)
-set(GBENCH_INCLUDE_DIR ${install_dir}/include CACHE INTERNAL "")
-
-ExternalProject_Get_Property(benchmark binary_dir)
-set(GBENCH_LIB_DIR ${install_dir}/lib64 CACHE INTERNAL "")
+#include(ExternalProject)
+#
+#ExternalProject_Add(expected
+#        PREFIX ${CMAKE_CURRENT_SOURCE_DIR}/3rd/expected
+#        GIT_REPOSITORY https://github.com/TartanLlama/expected
+#        TIMEOUT 10
+#        UPDATE_COMMAND ${GIT_EXECUTABLE} pull
+#        #CONFIGURE_COMMAND ""
+#        #BUILD_COMMAND ""
+#        #INSTALL_COMMAND ""
+#        LOG_DOWNLOAD ON
+#        )
+#ExternalProject_Get_Property(expected source_dir)
+#set(EXPECTED_INCLUDE_DIR ${source_dir}/include)
+#message("expected:\n" ${EXPECTED_INCLUDE_DIR})
 
 add_definitions(-DHETLIB_AUTHOR="Yuri Volodine")
 add_definitions(-DHETLIB_PRODUCT="hetlib")
@@ -89,7 +73,14 @@ endif()
 configure_file(version_config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/include/generated/version_config.h)
 
 add_library(hetlib INTERFACE)
-target_sources(hetlib INTERFACE 
+target_include_directories(hetlib
+        INTERFACE
+        $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:include>)
+if (NOT CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
+    add_library(het::hetlib ALIAS hetlib)
+endif()
+target_sources(hetlib INTERFACE
     FILE_SET HEADERS 
     BASE_DIRS ${PROJECT_SOURCE_DIR}
     FILES ${INTERFACE_FILES}
@@ -109,4 +100,60 @@ enable_testing()
 
 add_subdirectory(tests)
 
+configure_package_config_file(
+        "${PROJECT_SOURCE_DIR}/cmake/${PROJECT_NAME}-config.cmake.in"
+        "${PROJECT_BINARY_DIR}/${PROJECT_NAME}-config.cmake"
+        INSTALL_DESTINATION "share/cmake/${PROJECT_NAME}")
+
+write_basic_package_version_file(
+        "${PROJECT_BINARY_DIR}/${PROJECT_NAME}-config-version.cmake"
+        COMPATIBILITY SameMajorVersion
+        ARCH_INDEPENDENT)
+
 install(TARGETS hetlib FILE_SET HEADERS)
+
+#install(TARGETS hetlib
+#        EXPORT ${PROJECT_NAME}-targets
+#        INCLUDES DESTINATION "${CMAKE_INSTALL_DATADIR}")
+#
+#install(EXPORT ${PROJECT_NAME}-targets
+#        DESTINATION "${CMAKE_INSTALL_DATADIR}/cmake/${PROJECT_NAME}"
+#        NAMESPACE het::
+#        FILE "${PROJECT_NAME}-targets.cmake")
+#
+#install(FILES
+#        "${PROJECT_BINARY_DIR}/${PROJECT_NAME}-config-version.cmake"
+#        "${PROJECT_BINARY_DIR}/${PROJECT_NAME}-config.cmake"
+#        DESTINATION "${CMAKE_INSTALL_DATADIR}/cmake/${PROJECT_NAME}")
+#
+#install(DIRECTORY "include/" TYPE INCLUDE)
+
+if (NOT HETLIB_BUILD_PACKAGE)
+    return()
+endif()
+
+list(APPEND source-generators TBZ2 TGZ TXZ ZIP)
+
+if (CMAKE_HOST_WIN32)
+    list(APPEND binary-generators "WIX")
+endif()
+
+if (HETLIB_BUILD_PACKAGE_DEB)
+    list(APPEND binary-generators "DEB")
+endif()
+
+if (HETLIB_BUILD_RPM)
+    list(APPEND binary-generators "RPM")
+endif()
+
+set(CPACK_SOURCE_GENERATOR ${source-generators})
+set(CPACK_GENERATOR ${binary-generators})
+
+set(CPACK_PACKAGE_FILE_NAME "${PROJECT_NAME}-${PROJECT_VERSION}")
+set(CPACK_SOURCE_PACKAGE_FILE_NAME "${CPACK_PACKAGE_FILE_NAME}")
+
+set(CPACK_DEBIAN_PACKAGE_MAINTAINER "Yuri Volodine")
+
+list(APPEND CPACK_SOURCE_IGNORE_FILES /.git/ /build/ .gitignore .DS_Store)
+
+include(CPack)
