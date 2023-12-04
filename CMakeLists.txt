@@ -73,10 +73,6 @@ endif()
 configure_file(version_config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/include/generated/version_config.h)
 
 add_library(hetlib INTERFACE)
-target_include_directories(hetlib
-        INTERFACE
-        $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
-        $<INSTALL_INTERFACE:include>)
 if (NOT CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
     add_library(het::hetlib ALIAS hetlib)
 endif()
@@ -110,7 +106,12 @@ write_basic_package_version_file(
         COMPATIBILITY SameMajorVersion
         ARCH_INDEPENDENT)
 
+target_include_directories(hetlib
+        INTERFACE $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
+
 install(TARGETS hetlib FILE_SET HEADERS)
+
 
 #install(TARGETS hetlib
 #        EXPORT ${PROJECT_NAME}-targets
