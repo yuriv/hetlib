@@ -24,7 +24,6 @@ FetchContent_MakeAvailable(doctest)
 set(DOCTEST_INCLUDE_DIR ${doctest_SOURCE_DIR}/doctest)
 message("doctest:\n" ${DOCTEST_INCLUDE_DIR})
 
-message("compiler :" ${CMAKE_CXX_COMPILER_VERSION})
 include_directories(
         ../include
         ${DOCTEST_INCLUDE_DIR}
