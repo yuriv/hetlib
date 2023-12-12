@@ -1,5 +1,11 @@
 cmake_minimum_required(VERSION 3.11)
+
+include(cmake/Modules/prelude.cmake)
+
 project(hetlib VERSION 0.0.1 LANGUAGES CXX DESCRIPTION "HetLib is a header-only heterogeneous container library")
+
+include(cmake/Modules/project-is-top-level.cmake)
+include(cmake/Modules/variables.cmake)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
@@ -45,23 +51,10 @@ set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fPIC -O0 -Wall -Wextra -Wpe
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -fPIC -Wall -Wextra -Wpedantic -O2 -DNDEBUG")
 set(CMAKE_CONFIGURATION_TYPES "Debug;Release" CACHE STRING "" FORCE)
 set(SOURCE_FILES
-    include/het/details/domains.h
-    include/het/details/error.h
-    include/het/details/expected.h
-    include/het/details/match.h
-    include/het/details/type_ctors_util.h
-    include/het/details/typesafe.h
-    include/het/details/uncommon_definitions.h
-    include/het/het.h
-    include/het/het_container.h
-    include/het/het_keyvalue.h
-    include/het/het_value.h
+    include/
     )
 set(INTERFACE_FILES
-    include/het/het.h
-    include/het/het_container.h
-    include/het/het_keyvalue.h
-    include/het/het_value.h
+    include/het/
     )
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -73,9 +66,8 @@ endif()
 configure_file(version_config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/include/generated/version_config.h)
 
 add_library(hetlib INTERFACE)
-if (NOT CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
-    add_library(het::hetlib ALIAS hetlib)
-endif()
+add_library(het::hetlib ALIAS hetlib)
+
 target_sources(hetlib INTERFACE
     FILE_SET HEADERS 
     BASE_DIRS ${PROJECT_SOURCE_DIR}
@@ -89,11 +81,14 @@ include_directories(
         ${CMAKE_CURRENT_SOURCE_DIR}
     )
 
-add_subdirectory(examples)
-
-enable_testing()
-
-add_subdirectory(tests)
+if (${PROJECT_NAME}_BUILD_PACKAGE)
+    set(${PROJECT_NAME}_PACKAGE_FILES ${INTERFACE_FILES} CMakeLists.txt BUILDING.md LICENSE README.md version_config.h.in)
+    add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}_src.tar.gz
+            COMMAND ${CMAKE_COMMAND} -E tar c ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}_src.tar.gz --format=gnutar -- ${${PROJECT_NAME}_PACKAGE_FILES}
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+            DEPENDS ${${PROJECT_NAME}_PACKAGE_FILES})
+    add_custom_target(${PROJECT_NAME}_PACKAGE DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}_src.tar.gz)
+endif()
 
 configure_package_config_file(
         "${PROJECT_SOURCE_DIR}/cmake/${PROJECT_NAME}-config.cmake.in"
@@ -111,7 +106,6 @@ target_include_directories(hetlib
 
 install(TARGETS hetlib FILE_SET HEADERS)
 
-
 #install(TARGETS hetlib
 #        EXPORT ${PROJECT_NAME}-targets
 #)
@@ -128,7 +122,21 @@ install(TARGETS hetlib FILE_SET HEADERS)
 #
 #install(DIRECTORY "include/" TYPE INCLUDE)
 
-if (NOT HETLIB_BUILD_PACKAGE)
+if(NOT ${PROJECT_NAME}_DEVELOPER_MODE)
+    return()
+elseif(NOT PROJECT_IS_TOP_LEVEL)
+    message(AUTHOR_WARNING "Developer mode is intended for developers of ${PROJECT_NAME}")
+endif()
+
+if (BUILD_TESTING)
+    add_subdirectory(examples)
+
+    enable_testing()
+
+    add_subdirectory(tests)
+endif()
+
+if (NOT ${PROJECT_NAME}_BUILD_PACKAGE)
     return()
 endif()
 
@@ -138,11 +146,11 @@ if (CMAKE_HOST_WIN32)
     list(APPEND binary-generators "WIX")
 endif()
 
-if (HETLIB_BUILD_PACKAGE_DEB)
+if (${PROJECT_NAME}_BUILD_PACKAGE_DEB)
     list(APPEND binary-generators "DEB")
 endif()
 
-if (HETLIB_BUILD_RPM)
+if (${PROJECT_NAME}_BUILD_RPM)
     list(APPEND binary-generators "RPM")
 endif()
 
@@ -154,6 +162,6 @@ set(CPACK_SOURCE_PACKAGE_FILE_NAME "${CPACK_PACKAGE_FILE_NAME}")
 
 set(CPACK_DEBIAN_PACKAGE_MAINTAINER "Yuri Volodine")
 
-list(APPEND CPACK_SOURCE_IGNORE_FILES /.git/ /build/ .gitignore .DS_Store)
+list(APPEND CPACK_SOURCE_IGNORE_FILES /.git/ /build/ /cmake-build-*/ .gitignore .DS_Store)
 
 include(CPack)
