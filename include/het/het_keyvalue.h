@@ -298,62 +298,62 @@ private:
 template <template <typename, typename, typename...> typename C>
 template <typename K, typename T> C<hetero_key_value<C> const *, C<K, T>> hetero_key_value<C>::_values;
 
-template <typename... Ts, typename K, template <typename...> class C>
+template <typename... Ts, typename K, template <typename, typename, typename...> class C>
 auto to_tuple(hetero_key_value<C> const & hkv, K && key) -> std::tuple<safe_ref<Ts>...> {
   return to_tuple<Ts...>(move(hkv), std::forward<K>(key));
 }
 
-template <typename... Ts, typename K, template <typename...> class C>
+template <typename... Ts, typename K, template <typename, typename, typename...> class C>
 auto to_tuple(hetero_key_value<C> & hkv, K && key) -> std::tuple<safe_ref<Ts>...> {
   return to_tuple<Ts...>(std::move(hkv), std::forward<K>(key));
 }
 
-template <typename... Ts, typename K, template <typename...> class C>
+template <typename... Ts, typename K, template <typename, typename, typename...> class C>
 auto to_tuple(hetero_key_value<C> && hkv, K && key) -> std::tuple<safe_ref<Ts>...> {
   return hkv.template to_tuple<Ts...>(std::forward<K>(key));
 }
 
-template <typename... Ts, typename K, template <typename...> class C>
+template <typename... Ts, typename K, template <typename, typename, typename...> class C>
 auto try_to_tuple(hetero_key_value<C> const & hkv, K && key) -> expected<std::tuple<safe_ref<Ts>...>, access::error_code> {
-  return try_to_tuple<Ts...>(move(hkv), std::forward<K>(key));
+  return try_to_tuple<Ts...>(std::move(hkv), std::forward<K>(key));
 }
 
-template <typename... Ts, typename K, template <typename...> class C>
+template <typename... Ts, typename K, template <typename, typename, typename...> class C>
 auto try_to_tuple(hetero_key_value<C> & hkv, K && key) -> expected<std::tuple<safe_ref<Ts>...>, access::error_code> {
   return try_to_tuple<Ts...>(std::move(hkv), std::forward<K>(key));
 }
 
-template <typename... Ts, typename K, template <typename...> class C>
+template <typename... Ts, typename K, template <typename, typename, typename...> class C>
 auto try_to_tuple(hetero_key_value<C> && hkv, K && key) -> expected<std::tuple<safe_ref<Ts>...>, access::error_code> {
   return hkv.template try_to_tuple<Ts...>(std::forward<K>(key));
 }
 
-template <typename T, template <typename...> class C, typename... Ks>
+template <typename T, template <typename, typename, typename...> class C, typename... Ks>
 auto to_vector(hetero_key_value<C> const & hkv, Ks &&... keys) -> std::vector<safe_ref<T>> {
   return to_vector<T>(std::move(hkv), std::forward<Ks>(keys)...);
 }
 
-template <typename T, template <typename...> class C, typename... Ks>
+template <typename T, template <typename, typename, typename...> class C, typename... Ks>
 auto to_vector(hetero_key_value<C> & hkv, Ks &&... keys) -> std::vector<safe_ref<T>> {
   return to_vector<T>(std::move(hkv), std::forward<Ks>(keys)...);
 }
 
-template <typename T, template <typename...> class C, typename... Ks>
+template <typename T, template <typename, typename, typename...> class C, typename... Ks>
 auto to_vector(hetero_key_value<C> && hkv, Ks &&... keys) -> std::vector<safe_ref<T>> {
   return hkv.template to_vector<T>(std::forward<Ks>(keys)...);
 }
 
-template <typename T, template <typename...> class C, typename... Ks>
+template <typename T, template <typename, typename, typename...> class C, typename... Ks>
 auto try_to_vector(hetero_key_value<C> const & hkv, Ks &&... keys) -> expected<std::vector<safe_ref<T>>, access::error_code> {
   return try_to_vector<T>(std::move(hkv), std::forward<Ks>(keys)...);
 }
 
-template <typename T, template <typename...> class C, typename... Ks>
+template <typename T, template <typename, typename, typename...> class C, typename... Ks>
 auto try_to_vector(hetero_key_value<C> & hkv, Ks &&... keys) -> expected<std::vector<safe_ref<T>>, access::error_code> {
   return try_to_vector<T>(std::move(hkv), std::forward<Ks>(keys)...);
 }
 
-template <typename T, template <typename...> class C, typename... Ks>
+template <typename T, template <typename, typename, typename...> class C, typename... Ks>
 auto try_to_vector(hetero_key_value<C> && hkv, Ks &&... keys) -> expected<std::vector<safe_ref<T>>, access::error_code> {
   return hkv.template try_to_vector<T>(std::forward<Ks>(keys)...);
 }

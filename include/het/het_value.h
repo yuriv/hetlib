@@ -257,68 +257,68 @@ private:
 template <template <typename, typename, typename...> typename C>
 template <typename T> C<hetero_value<C> const *, T> hetero_value<C>::_values;
 
-template <typename T, template <typename...> typename C>
+template <typename T, template <typename, typename, typename...> typename C>
 constexpr T & get(het::hetero_value<C> & hv) requires (!std::is_void_v<T>) {
   return hv.template value<T>();
 }
 
-template <typename T, template <typename...> typename C>
+template <typename T, template <typename, typename, typename...> typename C>
 constexpr T && get(het::hetero_value<C> && hv) requires (!std::is_void_v<T>) {
   return std::move(hv.template value<T>());
 }
 
-template <typename T, template <typename...> typename C>
+template <typename T, template <typename, typename, typename...> typename C>
 constexpr T const & get(het::hetero_value<C> const & hv) requires (!std::is_void_v<T>) {
   return hv.template value<T>();
 }
 
-template <typename T, template <typename...> typename C>
+template <typename T, template <typename, typename, typename...> typename C>
 constexpr T const && get(het::hetero_value<C> const && hv) requires (!std::is_void_v<T>) {
   return std::move(hv.template value<T>());
 }
 
-template <typename T, template <typename...> typename C>
+template <typename T, template <typename, typename, typename...> typename C>
 constexpr T const * get_if(het::hetero_value<C> const & hv) noexcept requires (!std::is_void_v<T>) {
   static_assert(!std::is_void_v<T>, "T must not be void");
   return hv.template contains<T>() ? std::addressof(get<T>(hv)) : nullptr;
 }
 
-template <typename T, template <typename...> typename C>
+template <typename T, template <typename, typename, typename...> typename C>
 constexpr T * get_if(het::hetero_value<C> & hv) noexcept requires (!std::is_void_v<T>) {
   return hv.template contains<T>() ? std::addressof(get<T>(hv)) : nullptr;
 }
 
-template <typename T, template <typename...> typename C>
+template <typename T, template <typename, typename, typename...> typename C>
 constexpr T * get_if(het::hetero_value<C> && hv) noexcept requires (!std::is_void_v<T>) {
   return hv.template contains<T>() ? std::addressof(get<T>(hv)) : nullptr;
 }
 
-template <typename... Ts, template <typename...> class C>
+template <typename... Ts, template <typename, typename, typename...> class C>
 auto to_tuple(hetero_value<C> const & hv) -> std::tuple<safe_ref<Ts>...> {
   return to_tuple<Ts...>(std::move(hv));
 }
 
-template <typename... Ts, template <typename...> class C>
+template <typename... Ts, template <typename, typename, typename...> class C>
 auto to_tuple(hetero_value<C> & hv) -> std::tuple<safe_ref<Ts>...> {
   return to_tuple<Ts...>(std::move(hv));
 }
 
-template <typename... Ts, template <typename...> class C>
+template <typename... Ts, template <typename, typename, typename...> class C>
 auto to_tuple(hetero_value<C> && hv) -> std::tuple<safe_ref<Ts>...> {
   return hv.template to_tuple<Ts...>();
 }
 
-template <typename... Ts, template <typename...> class C>
+template <typename... Ts, template <typename, typename, typename...> class C>
 auto try_to_tuple(hetero_value<C> const & hv) -> expected<std::tuple<safe_ref<Ts>...>, access::error_code> {
   return try_to_tuple<Ts...>(std::move(hv));
 }
 
-template <typename... Ts, template <typename...> class C>
+template <typename... Ts, template <typename, typename, typename...> class C>
 auto try_to_tuple(hetero_value<C> & hv) -> expected<std::tuple<safe_ref<Ts>...>, access::error_code> {
   return try_to_tuple<Ts...>(std::move(hv));
 }
 
-template <typename... Ts, template <typename...> class C>
+template <typename... Ts, template <typename, typename, typename...> class C>
 auto try_to_tuple(hetero_value<C> && hv) -> expected<std::tuple<safe_ref<Ts>...>, access::error_code> {
   return hv.template try_to_tuple<Ts...>();
 }

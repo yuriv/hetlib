@@ -18,9 +18,9 @@ enum class VisitorReturn { Break, Continue };
 template <typename T> concept projection_clause = requires(T t) {
   t.first;
   t.second;
-  std::convertible_to<std::decay_t<decltype(t.first)>, std::decay_t<decltype(t.second)>>;
-  std::invocable<std::decay_t<decltype(t.first)>>;
-  std::equality_comparable<std::decay_t<decltype(t.second)>>;
+  //requires std::convertible_to<std::decay_t<decltype(t.first)>, std::decay_t<decltype(t.second)>>;
+  //requires std::invocable<std::decay_t<decltype(t.first)>, std::decay_t<decltype(t.second)>>;
+  requires std::equality_comparable<std::decay_t<decltype(t.second)>>;
 };
 
 template <template <typename, typename, typename...> class C>
